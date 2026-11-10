@@ -1,1 +1,0 @@
--- Establishes the tables for perk and membership in the db
