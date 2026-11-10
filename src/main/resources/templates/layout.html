@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:replace="${title}">Perk Manager</title>
+</head>
+<body>
+<header>
+    <nav>
+        <a th:href="@{/}">Perk Manager</a>
+    </nav>
+</header>
+<main th:replace="${content}"></main>
+<footer>
+    <p>SYSC 4806 Group 13</p>
+</footer>
+</body>
+</html>
