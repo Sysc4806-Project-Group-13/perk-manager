@@ -20,4 +20,24 @@ class HomeControllerTest {
             .hasViewName("index")
             .bodyText().contains("Perk Manager");
     }
+
+    @Test
+    void homepageMarksHomeAsCurrentNavItem() {
+        assertThat(mvc.get().uri("/"))
+            .hasStatusOk()
+            .bodyText()
+            .contains("aria-label=\"Primary\"")
+            .contains("aria-current=\"page\">Home</a>")
+            .doesNotContain("aria-current=\"page\">Memberships</a>");
+    }
+
+    @Test
+    void homepageLoadsVendoredStyles() {
+        assertThat(mvc.get().uri("/"))
+            .hasStatusOk()
+            .bodyText()
+            .contains("/vendor/tailwindcss-browser.js")
+            .contains("/vendor/basecoat/basecoat-sera.cdn.min.css")
+            .contains("/vendor/basecoat/all.min.js");
+    }
 }
