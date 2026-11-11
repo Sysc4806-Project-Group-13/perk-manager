@@ -29,7 +29,7 @@ class MembershipServiceTest {
 
         Membership membership = mock(Membership.class);
 
-        when(membershipRepository.findAll())
+        when(membershipRepository.findAllByOrderByNameAsc())
                 .thenReturn(List.of(membership));
 
         List<Membership> result =
@@ -37,13 +37,13 @@ class MembershipServiceTest {
 
         assertEquals(1, result.size());
 
-        verify(membershipRepository).findAll();
+        verify(membershipRepository).findAllByOrderByNameAsc();
     }
 
     @Test
     void getAllMembershipsReturnsEmptyList() {
 
-        when(membershipRepository.findAll())
+        when(membershipRepository.findAllByOrderByNameAsc())
                 .thenReturn(List.of());
 
         List<Membership> result =

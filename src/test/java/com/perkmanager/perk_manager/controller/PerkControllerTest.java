@@ -1,4 +1,4 @@
-package com.perkmanager.perk_manager.controllers;
+package com.perkmanager.perk_manager.controller;
 
 import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.model.Perk;

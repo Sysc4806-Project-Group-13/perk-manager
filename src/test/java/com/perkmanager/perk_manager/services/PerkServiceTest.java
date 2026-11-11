@@ -40,7 +40,7 @@ class PerkServiceTest {
         when(membershipRepository.existsById(membershipId))
                 .thenReturn(true);
 
-        when(perkRepository.findByMembership_MembershipId(
+        when(perkRepository.findByMembershipId(
                 membershipId))
                 .thenReturn(List.of(perk));
 
@@ -50,7 +50,7 @@ class PerkServiceTest {
         assertEquals(1, result.size());
 
         verify(perkRepository)
-                .findByMembership_MembershipId(membershipId);
+                .findByMembershipId(membershipId);
     }
 
     @Test
@@ -78,7 +78,7 @@ class PerkServiceTest {
         );
 
         verify(perkRepository, never())
-                .findByMembership_MembershipId(anyLong());
+                .findByMembershipId(anyLong());
     }
 
     @Test
@@ -89,7 +89,7 @@ class PerkServiceTest {
         when(membershipRepository.existsById(membershipId))
                 .thenReturn(true);
 
-        when(perkRepository.findByMembership_MembershipId(
+        when(perkRepository.findByMembershipId(
                 membershipId))
                 .thenReturn(List.of());
 

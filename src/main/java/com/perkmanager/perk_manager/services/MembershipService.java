@@ -1,25 +1,24 @@
-
 package com.perkmanager.perk_manager.services;
-
-import org.springframework.stereotype.Service;
-import java.util.List;
 
 import com.perkmanager.perk_manager.model.Membership;
 import com.perkmanager.perk_manager.repository.MembershipRepository;
+
+import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class MembershipService {
 
     private final MembershipRepository membershipRepository;
 
-    // Constructor injection
     public MembershipService(
             MembershipRepository membershipRepository) {
         this.membershipRepository = membershipRepository;
     }
 
-    // Retrieve all available memberships
+    // Retrieve all memberships alphabetically
     public List<Membership> getAllMemberships() {
-        return membershipRepository.findAll();
+        return membershipRepository.findAllByOrderByNameAsc();
     }
 }
