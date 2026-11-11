@@ -12,7 +12,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     List<Membership> findAllByOrderByNameAsc();
 
     // Exact-name lookup
-    List<Membership> findByName(String name);
+    Optional<Membership> findByName(String name);
 
     // Partial, case-insensitive name search, e.g. "visa" finds "Visa Infinite"
     List<Membership> findByNameContainingIgnoreCase(String name);
