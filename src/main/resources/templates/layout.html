@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:replace="${title}">Perk Manager</title>
+    <script>
+        (() => {
+            try {
+                const stored = localStorage.getItem("themeMode");
+                const dark = stored ? stored === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+                document.documentElement.classList.toggle("dark", dark);
+            } catch (_) {}
+        })();
+    </script>
+    <script th:src="@{/vendor/tailwindcss-browser.js}"></script>
+    <style type="text/tailwindcss">
+        @custom-variant dark (&:where(.dark, .dark *));
+        @theme inline {
+            --color-background: var(--background);
+            --color-foreground: var(--foreground);
+            --color-muted: var(--muted);
+            --color-muted-foreground: var(--muted-foreground);
+            --color-border: var(--border);
+            --color-primary: var(--primary);
+        }
+    </style>
+    <link rel="stylesheet" th:href="@{/vendor/basecoat/basecoat-sera.cdn.min.css}">
+    <script th:src="@{/vendor/basecoat/all.min.js}" defer></script>
+</head>
+<body class="flex min-h-dvh flex-col bg-background text-foreground antialiased">
+<header class="sticky top-0 z-30 border-b border-border bg-background">
+    <div class="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-2 px-4">
+        <div class="flex min-w-0 items-center gap-1">
+            <a th:href="@{/}" class="btn font-semibold" data-variant="ghost">Perk Manager</a>
+            <nav class="flex items-center gap-1" aria-label="Primary">
+                <a th:href="@{/}" class="btn aria-[current=page]:bg-muted" data-variant="ghost"
+                   th:attr="aria-current=${activeNav == 'home'} ? 'page' : null">Home</a>
+                <a th:href="@{/memberships}" class="btn aria-[current=page]:bg-muted" data-variant="ghost"
+                   th:attr="aria-current=${activeNav == 'memberships'} ? 'page' : null">Memberships</a>
+            </nav>
+        </div>
+        <button type="button" class="btn" data-variant="ghost" data-size="icon"
+                aria-label="Toggle dark mode" onclick="window.basecoat.theme.toggle()">
+            <svg class="hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            <svg class="block dark:hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+    </div>
+</header>
+<div class="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+    <main th:replace="${content}"></main>
+</div>
+<footer class="border-t border-border">
+    <div class="mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground">SYSC 4806 Group 13</div>
+</footer>
+</body>
+</html>

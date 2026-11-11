@@ -1,3 +1,10 @@
+# Perk Manager
+
+Perk Manager helps people find discounts tied to the memberships and cards they already have, like Air Miles, CAA, Visa, Costco, and Scene+.
+
+**Live app:** https://perkmanager-bmanbbccczdtcca4.mexicocentral-01.azurewebsites.net
+
+---
 # Local Development Setup
 
 ## Prerequisites
