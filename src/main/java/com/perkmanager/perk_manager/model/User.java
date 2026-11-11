@@ -31,7 +31,9 @@ public class User {
     // The memberships in this user's profile. Rows live in the user_memberships join table.
     @ManyToMany
     @JoinTable(name = "user_memberships",
+            // column pointing at this entity
             joinColumns = @JoinColumn(name = "user_id"),
+            // column pointing at the other side/entity
             inverseJoinColumns = @JoinColumn(name = "membership_id"))
     private Set<Membership> memberships = new HashSet<>();
 
@@ -52,6 +54,7 @@ public class User {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
     // Set avoids duplicate memberships for a user
+    // with this removing one membership deletes exactly one join-table row
     public Set<Membership> getMemberships() { return memberships; }
 
     @Override
