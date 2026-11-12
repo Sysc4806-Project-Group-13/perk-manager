@@ -248,8 +248,10 @@ class MembershipControllerTest {
         Membership notOwnedWithPerk = membership(3L);
         when(membershipService.getAllMemberships())
                 .thenReturn(List.of(ownedWithPerk, ownedNoPerk, notOwnedWithPerk));
+        Perk owned = perkOf(ownedWithPerk);
+        Perk notOwned = perkOf(notOwnedWithPerk);
         when(perkService.searchActivePerks("tea", null, null))
-                .thenReturn(List.of(perkOf(ownedWithPerk), perkOf(notOwnedWithPerk)));
+                .thenReturn(List.of(owned, notOwned));
 
         controller.memberships("tea", true, request, model);
 

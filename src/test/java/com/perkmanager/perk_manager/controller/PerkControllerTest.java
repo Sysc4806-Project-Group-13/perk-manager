@@ -123,8 +123,9 @@ class PerkControllerTest {
     @Test
     void perksForVisitorIsNotLoggedInAndNeverLooksUpMemberships() {
         loginAs(null);
+        Perk perk = perkInMembership(1L);
         when(perkService.searchActivePerks("", "", null))
-                .thenReturn(List.of(perkInMembership(1L)));
+                .thenReturn(List.of(perk));
 
         // mine=true is ignored for visitors because onlyMine = mine && loggedIn
         controller.perks(null, null, true, request, model);
