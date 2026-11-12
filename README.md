@@ -130,7 +130,7 @@ After installing PostgreSQL, open pgAdmin4 and connect to your local PostgreSQL 
 
 Each developer will have to create their own local `perkmanager` database.
 
-## 3. Configure Database Connection
+## 2. Configure Database Connection
 
 There is an application.properties file, you will need to make sure it is configured properly.
 If you used the defaults on your postgresql installation, then the existing file should work.
@@ -142,9 +142,9 @@ spring.datasource.username=${DB_USERNAME:postgres}
 spring.datasource.password=${DB_PASSWORD:WHATEVER_YOU_SET_YOUR_PW_TO}
 ```
 
-ATTENTION: DO NOT COMMIT YOU application.properties OR ELSE WE ALL SEE YOUR PASSWORD
+ATTENTION: DO NOT COMMIT YOUR application.properties OR ELSE WE ALL SEE YOUR PASSWORD
 
-## 4. Run the Application
+## 3. Run the Application
 
 From the project directory, run:
 
@@ -156,7 +156,7 @@ When the application starts, Flyway automatically checks and applies any
 database migrations that have not already been executed. So you don't have to
 create any tables or data yourself
 
-## 5. Verify the Application
+## 4. Verify the Application
 
 Once Spring Boot has started, open:
 
@@ -164,7 +164,7 @@ http://localhost:8080
 
 This is the url where the application will be run on.
 
-## 6. Database Migrations (Flyway)
+## 5. Database Migrations (Flyway)
 
 Database schema changes are managed through Flyway.
 
@@ -174,7 +174,7 @@ Migration files are located in:
 src/main/resources/db/migration/
 ```
 
-Migration filenames must follow this convention:
+Migration filenames must follow this convention, for example:
 
 ```text
 V1__create_perks_and_memberships.sql
@@ -196,3 +196,12 @@ When new database changes are required:
 
 **Important:** Do not modify migrations that have already been applied. Always create a new migration for additional database changes.
 If you do, Flyway will give an error, and you will have to undo your changes and move them to a new migration file.
+
+## Deployment
+
+The app runs on Azure App Service with an Azure Database for PostgreSQL flexible server. The live URL is at the top of this file.
+
+- Every push to `main` triggers the `main_perkmanager.yml` workflow in GitHub Actions, which builds the JAR and deploys it to Azure.
+- Tests run separately in the Maven CI workflow against a PostgreSQL container, so the deploy workflow skips them.
+- The app reads its database settings from the environment variables `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`, which are set in the Azure App Service settings and never committed.
+- Flyway runs on startup in Azure too, so a migration that is edited after it was applied will crash the deployed app. Always add a new migration instead.
