@@ -91,6 +91,10 @@ alter table if exists user_memberships add constraint FK3aftj3ypdb19itnsapcxyked
 
 
 ---
+## UML Class Diagram
+
+![UML class diagram](docs/ModelsClassUML.png)
+
 # Local Development Setup
 
 ## Prerequisites
