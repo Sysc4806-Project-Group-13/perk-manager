@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>Memberships - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="flex flex-col gap-6">
+        <div class="flex flex-col gap-1">
+            <h1 class="text-3xl font-semibold tracking-tight">Memberships</h1>
+            <p class="text-muted-foreground">Browse memberships and the perks that come with them.</p>
+        </div>
+
+        <form th:action="@{/memberships}" method="get" class="flex flex-wrap items-end gap-2">
+            <div class="grid flex-1 gap-2">
+                <label class="label" for="q">Search perks</label>
+                <input class="input" type="search" id="q" name="q" th:value="${q}"
+                       placeholder="e.g. movies, hotel, Air Miles">
+            </div>
+            <label class="flex items-center gap-2 text-sm" th:if="${loggedIn}">
+                <input type="checkbox" name="mine" value="true" th:checked="${mine}">
+                Only my memberships
+            </label>
+            <button type="submit" class="btn">Search</button>
+        </form>
+
+        <p th:if="${#lists.isEmpty(rows)}" class="text-muted-foreground">
+            No memberships or perks match your search.
+        </p>
+
+        <div class="card" th:each="row : ${rows}">
+            <header>
+                <h2>
+                    <span th:text="${row.membership.name}">Membership</span>
+                    <span class="badge" th:if="${row.mine}">In my profile</span>
+                </h2>
+                <p th:text="${row.membership.description}">Description</p>
+            </header>
+            <section>
+                <p th:if="${#lists.isEmpty(row.perks)}" class="text-muted-foreground">
+                    No active perks right now.
+                </p>
+                <div class="overflow-x-auto" th:unless="${#lists.isEmpty(row.perks)}">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Perk</th>
+                            <th>Product</th>
+                            <th>Benefit</th>
+                            <th>Area</th>
+                            <th>Expires</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="p : ${row.perks}">
+                            <td th:text="${p.title}">Title</td>
+                            <td th:text="${p.productName}">Product</td>
+                            <td>
+                                <span class="badge" th:text="${p.discountType}">TYPE</span>
+                                <span th:text="${p.discountValue != null} ? ${p.discountValue} : ''"></span>
+                            </td>
+                            <td th:text="${p.geographicArea} ?: 'Anywhere'">Area</td>
+                            <td th:text="${p.expiryDate} ?: 'Never'">Date</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <footer th:if="${loggedIn and !row.mine}">
+                <form th:action="@{/profile/memberships}" method="post">
+                    <input type="hidden" name="membershipId" th:value="${row.membership.id}">
+                    <button type="submit" class="btn" data-variant="outline">Add to my profile</button>
+                </form>
+            </footer>
+        </div>
+    </section>
+</main>
+</body>
+</html>

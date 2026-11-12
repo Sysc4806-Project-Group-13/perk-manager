@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>Log in - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="mx-auto flex max-w-sm flex-col gap-6 py-8">
+        <div class="card">
+            <header>
+                <h2>Log in</h2>
+                <p>Log in to see perks that match your memberships.</p>
+            </header>
+            <section class="grid gap-4">
+                <div class="alert" data-variant="destructive" th:if="${error}">
+                    <section><p th:text="${error}"></p></section>
+                </div>
+                <form th:action="@{/login}" method="post" class="grid gap-4">
+                    <div class="grid gap-2">
+                        <label class="label" for="username">Username</label>
+                        <input class="input" type="text" id="username" name="username"
+                               th:value="${formUsername}" autocomplete="username" required autofocus>
+                    </div>
+                    <div class="grid gap-2">
+                        <label class="label" for="password">Password</label>
+                        <input class="input" type="password" id="password" name="password"
+                               autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn">Log in</button>
+                </form>
+            </section>
+            <footer>
+                <p class="text-sm text-muted-foreground">
+                    No account? <a th:href="@{/register}" class="underline">Sign up</a>
+                </p>
+            </footer>
+        </div>
+    </section>
+</main>
+</body>
+</html>
