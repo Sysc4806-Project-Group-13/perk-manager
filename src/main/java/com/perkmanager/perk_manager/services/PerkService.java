@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class PerkService {
@@ -45,5 +47,22 @@ public class PerkService {
 
         // Retrieve perks belonging to the membership
         return perkRepository.findByMembershipId(membershipId);
+    }
+
+    // Active perks matching a keyword, optionally limited to an area and to a set of memberships.
+    //   keyword: null or blank matches everything (product, title, description, membership name)
+    //   area: null or blank means no area filter; otherwise keeps perks with no area limit or that exact area
+    //   onlyMembershipIds: null means all memberships; an empty set means no perks at all
+    public List<Perk> searchActivePerks(String keyword, String area, Set<Long> onlyMembershipIds) {
+        String q = keyword == null ? "" : keyword.trim();
+        String wantedArea = area == null ? "" : area.trim();
+
+        return perkRepository.searchActive(q, LocalDate.now()).stream()
+                .filter(p -> wantedArea.isEmpty()
+                        || p.getGeographicArea() == null
+                        || p.getGeographicArea().equalsIgnoreCase(wantedArea))
+                .filter(p -> onlyMembershipIds == null
+                        || onlyMembershipIds.contains(p.getMembership().getId()))
+                .toList();
     }
 }

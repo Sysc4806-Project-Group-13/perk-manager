@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>Sign up - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="mx-auto flex max-w-sm flex-col gap-6 py-8">
+        <div class="card">
+            <header>
+                <h2>Create an account</h2>
+                <p>Save your memberships and get perks that match them.</p>
+            </header>
+            <section class="grid gap-4">
+                <div class="alert" data-variant="destructive" th:if="${error}">
+                    <section><p th:text="${error}"></p></section>
+                </div>
+                <form th:action="@{/register}" method="post" class="grid gap-4">
+                    <div class="grid gap-2">
+                        <label class="label" for="username">Username</label>
+                        <input class="input" type="text" id="username" name="username"
+                               th:value="${formUsername}" autocomplete="username"
+                               minlength="3" maxlength="50" required autofocus>
+                    </div>
+                    <div class="grid gap-2">
+                        <label class="label" for="password">Password (8+ characters)</label>
+                        <input class="input" type="password" id="password" name="password"
+                               autocomplete="new-password" minlength="8" maxlength="100" required>
+                    </div>
+                    <div class="grid gap-2">
+                        <label class="label" for="confirmPassword">Confirm password</label>
+                        <input class="input" type="password" id="confirmPassword" name="confirmPassword"
+                               autocomplete="new-password" minlength="8" maxlength="100" required>
+                    </div>
+                    <button type="submit" class="btn">Sign up</button>
+                </form>
+            </section>
+            <footer>
+                <p class="text-sm text-muted-foreground">
+                    Already have an account? <a th:href="@{/login}" class="underline">Log in</a>
+                </p>
+            </footer>
+        </div>
+    </section>
+</main>
+</body>
+</html>

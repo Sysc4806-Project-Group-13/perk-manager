@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>My profile - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="flex flex-col gap-6">
+        <h1 class="text-3xl font-semibold tracking-tight">
+            Welcome, <span th:text="${profileName}">user</span>
+        </h1>
+
+        <div class="alert" th:if="${message}">
+            <section><p th:text="${message}"></p></section>
+        </div>
+        <div class="alert" data-variant="destructive" th:if="${error}">
+            <section><p th:text="${error}"></p></section>
+        </div>
+
+        <div class="card">
+            <header>
+                <h2>My memberships</h2>
+                <p>The cards and programs you have.</p>
+            </header>
+            <section class="grid gap-4">
+                <p th:if="${#lists.isEmpty(memberships)}" class="text-muted-foreground">
+                    You have not added any memberships yet.
+                </p>
+                <ul class="grid gap-2" th:unless="${#lists.isEmpty(memberships)}">
+                    <li th:each="m : ${memberships}" class="flex items-center justify-between gap-2">
+                        <span>
+                            <strong th:text="${m.name}">Membership</strong>
+                            <span class="text-sm text-muted-foreground" th:text="${m.description}"></span>
+                        </span>
+                        <form th:action="@{/profile/memberships/{id}/remove(id=${m.id})}" method="post">
+                            <button type="submit" class="btn" data-variant="outline">Remove</button>
+                        </form>
+                    </li>
+                </ul>
+
+                <form th:if="${!#lists.isEmpty(availableMemberships)}"
+                      th:action="@{/profile/memberships}" method="post" class="flex items-end gap-2">
+                    <div class="grid flex-1 gap-2">
+                        <label class="label" for="membershipId">Add a membership</label>
+                        <select class="select" id="membershipId" name="membershipId" required>
+                            <option th:each="m : ${availableMemberships}" th:value="${m.id}" th:text="${m.name}">
+                            </option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn">Add</button>
+                </form>
+            </section>
+        </div>
+
+        <div class="card">
+            <header>
+                <h2>Perks for my memberships</h2>
+                <p>Active perks from the memberships above, soonest expiry first.</p>
+            </header>
+            <section>
+                <p th:if="${#lists.isEmpty(perks)}" class="text-muted-foreground">
+                    No active perks yet. Add a membership to see its perks.
+                </p>
+                <div class="overflow-x-auto" th:unless="${#lists.isEmpty(perks)}">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Perk</th>
+                            <th>Product</th>
+                            <th>Membership</th>
+                            <th>Benefit</th>
+                            <th>Area</th>
+                            <th>Expires</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="p : ${perks}">
+                            <td th:text="${p.title}">Title</td>
+                            <td th:text="${p.productName}">Product</td>
+                            <td th:text="${p.membership.name}">Membership</td>
+                            <td>
+                                <span class="badge" th:text="${p.discountType}">TYPE</span>
+                                <span th:text="${p.discountValue != null} ? ${p.discountValue} : ''"></span>
+                            </td>
+                            <td th:text="${p.geographicArea} ?: 'Anywhere'">Area</td>
+                            <td th:text="${p.expiryDate} ?: 'Never'">Date</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+</main>
+</body>
+</html>

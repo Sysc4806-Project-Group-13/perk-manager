@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>Perks - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="flex flex-col gap-6">
+        <div class="flex flex-col gap-1">
+            <h1 class="text-3xl font-semibold tracking-tight">Search perks</h1>
+            <p class="text-muted-foreground">Active perks, soonest expiry first.</p>
+        </div>
+
+        <form th:action="@{/perks}" method="get" class="flex flex-wrap items-end gap-2">
+            <div class="grid flex-1 gap-2">
+                <label class="label" for="q">Product or keyword</label>
+                <input class="input" type="search" id="q" name="q" th:value="${q}"
+                       placeholder="e.g. movie tickets, hotel">
+            </div>
+            <div class="grid gap-2">
+                <label class="label" for="area">Area</label>
+                <input class="input" type="text" id="area" name="area" th:value="${area}"
+                       placeholder="e.g. Ontario">
+            </div>
+            <label class="flex items-center gap-2 text-sm" th:if="${loggedIn}">
+                <input type="checkbox" name="mine" value="true" th:checked="${mine}">
+                Only my memberships
+            </label>
+            <button type="submit" class="btn">Search</button>
+        </form>
+
+        <p th:if="${#lists.isEmpty(rows)}" class="text-muted-foreground">
+            No active perks match your search.
+        </p>
+
+        <div class="overflow-x-auto" th:unless="${#lists.isEmpty(rows)}">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Perk</th>
+                    <th>Product</th>
+                    <th>Membership</th>
+                    <th>Benefit</th>
+                    <th>Area</th>
+                    <th>Expires</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${rows}">
+                    <td>
+                        <strong th:text="${row.perk.title}">Title</strong>
+                        <span class="badge" th:if="${row.matchesProfile}">In my profile</span>
+                        <div class="text-sm text-muted-foreground" th:text="${row.perk.description}"></div>
+                    </td>
+                    <td th:text="${row.perk.productName}">Product</td>
+                    <td th:text="${row.perk.membership.name}">Membership</td>
+                    <td>
+                        <span class="badge" th:text="${row.perk.discountType}">TYPE</span>
+                        <span th:text="${row.perk.discountValue != null} ? ${row.perk.discountValue} : ''"></span>
+                    </td>
+                    <td th:text="${row.perk.geographicArea} ?: 'Anywhere'">Area</td>
+                    <td th:text="${row.perk.expiryDate} ?: 'Never'">Date</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+</body>
+</html>
