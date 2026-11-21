@@ -1,6 +1,9 @@
 package com.perkmanager.perk_manager.controller;
 
 import com.perkmanager.perk_manager.model.User;
+import com.perkmanager.perk_manager.model.Perk;
+import com.perkmanager.perk_manager.model.PerkVote;
+import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.services.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
@@ -18,9 +21,11 @@ import java.util.Optional;
 public class ProfileController {
 
     private final UserService userService;
+    private final PerkService perkService;
 
-    public ProfileController(UserService userService) {
+    public ProfileController(UserService userService, PerkService perkService) {
         this.userService = userService;
+        this.perkService = perkService;
     }
 
     @GetMapping("/profile")
@@ -37,7 +42,20 @@ public class ProfileController {
         model.addAttribute("profileName", user.get().getUsername());
         model.addAttribute("memberships", userService.membershipsOf(userId));
         model.addAttribute("availableMemberships", userService.membershipsNotOwnedBy(userId));
-        model.addAttribute("perks", userService.perksForUser(userId));
+        var perks = userService.perksForUser(userId);
+        var votes = perkService.votesForPerks(perks.stream().map(Perk::getId).toList());
+        var perkRows = perks.stream().map(perk -> {
+            int score = 0;
+            Short myVote = null;
+            for (PerkVote vote : votes) {
+                if (vote.getPerk().getId().equals(perk.getId())) {
+                    score += vote.getValue();
+                    if (java.util.Objects.equals(vote.getUser().getId(), userId)) myVote = vote.getValue();
+                }
+            }
+            return new PerkController.PerkRow(perk, true, score, myVote);
+        }).toList();
+        model.addAttribute("perkRows", perkRows);
         model.addAttribute("activeNav", "profile");
         return "profile";
     }

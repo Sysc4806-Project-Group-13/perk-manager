@@ -71,19 +71,36 @@
                             <th>Benefit</th>
                             <th>Area</th>
                             <th>Expires</th>
+                            <th>Votes</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:each="p : ${perks}">
-                            <td th:text="${p.title}">Title</td>
-                            <td th:text="${p.productName}">Product</td>
-                            <td th:text="${p.membership.name}">Membership</td>
+                        <tr th:each="row : ${perkRows}">
+                            <td th:text="${row.perk.title}">Title</td>
+                            <td th:text="${row.perk.productName}">Product</td>
+                            <td th:text="${row.perk.membership.name}">Membership</td>
                             <td>
-                                <span class="badge" th:text="${p.discountType}">TYPE</span>
-                                <span th:text="${p.discountValue != null} ? ${p.discountValue} : ''"></span>
+                                <span class="badge" th:text="${row.perk.discountType}">TYPE</span>
+                                <span th:text="${row.perk.discountValue != null} ? ${row.perk.discountValue} : ''"></span>
                             </td>
-                            <td th:text="${p.geographicArea} ?: 'Anywhere'">Area</td>
-                            <td th:text="${p.expiryDate} ?: 'Never'">Date</td>
+                            <td th:text="${row.perk.geographicArea} ?: 'Anywhere'">Area</td>
+                            <td th:text="${row.perk.expiryDate} ?: 'Never'">Date</td>
+                            <td>
+                                <span aria-label="Vote score" th:text="${row.voteScore}">0</span>
+                                <form th:action="@{/perks/{id}/vote(id=${row.perk.id})}" method="post" class="inline-flex">
+                                    <input type="hidden" name="value" value="1">
+                                    <button class="btn" data-variant="outline" type="submit"
+                                            th:attr="aria-pressed=${row.myVote == 1}" th:text="${row.myVote == 1} ? 'Upvoted' : 'Upvote'">Upvote</button>
+                                </form>
+                                <form th:action="@{/perks/{id}/vote(id=${row.perk.id})}" method="post" class="inline-flex">
+                                    <input type="hidden" name="value" value="-1">
+                                    <button class="btn" data-variant="outline" type="submit"
+                                            th:attr="aria-pressed=${row.myVote == -1}" th:text="${row.myVote == -1} ? 'Downvoted' : 'Downvote'">Downvote</button>
+                                </form>
+                                <form th:if="${row.myVote != null}" th:action="@{/perks/{id}/vote/remove(id=${row.perk.id})}" method="post" class="inline-flex">
+                                    <button class="btn" data-variant="ghost" type="submit">Remove vote</button>
+                                </form>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
