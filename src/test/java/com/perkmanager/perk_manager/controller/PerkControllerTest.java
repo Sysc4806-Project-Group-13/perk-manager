@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 
@@ -37,6 +38,7 @@ class PerkControllerTest {
     @BeforeEach
     void setUp() {
         perkService = mock(PerkService.class);
+        lenient().when(perkService.votesForPerks(anyList())).thenReturn(List.of());
         userService = mock(UserService.class);
         controller = new PerkController(perkService, userService);
         request = mock(HttpServletRequest.class);
@@ -177,6 +179,35 @@ class PerkControllerTest {
         assertEquals(true, model.getAttribute("mine"));
         assertEquals(1, rowsFromModel().size());
         assertTrue(rowsFromModel().get(0).isMatchesProfile());
+    }
+
+    @Test
+    void voteRequiresLoginAndDelegatesVote() {
+        loginAs(42L);
+
+        String result = controller.vote(15L, (short) 1, request);
+
+        assertEquals("redirect:/perks", result);
+        verify(perkService).castVote(42L, 15L, (short) 1);
+    }
+
+    @Test
+    void voteRejectsVisitors() {
+        loginAs(null);
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.vote(15L, (short) -1, request));
+        verify(perkService, never()).castVote(any(), any(), any());
+    }
+
+    @Test
+    void removeVoteRequiresLoginAndDelegatesToService() {
+        loginAs(42L);
+
+        String result = controller.removeVote(15L, request);
+
+        assertEquals("redirect:/perks", result);
+        verify(perkService).removeVote(42L, 15L);
     }
 
     /**

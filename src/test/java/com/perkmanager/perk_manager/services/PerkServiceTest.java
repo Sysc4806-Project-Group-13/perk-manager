@@ -2,6 +2,10 @@ package com.perkmanager.perk_manager.services;
 
 import com.perkmanager.perk_manager.repository.MembershipRepository;
 import com.perkmanager.perk_manager.repository.PerkRepository;
+import com.perkmanager.perk_manager.repository.PerkVoteRepository;
+import com.perkmanager.perk_manager.repository.UserRepository;
+import com.perkmanager.perk_manager.model.PerkVote;
+import com.perkmanager.perk_manager.model.User;
 import com.perkmanager.perk_manager.model.Perk;
 
 import org.junit.jupiter.api.Test;
@@ -14,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -28,6 +33,12 @@ class PerkServiceTest {
 
     @Mock
     private MembershipRepository membershipRepository;
+
+    @Mock
+    private PerkVoteRepository voteRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     // Inject the mocked repositories into PerkService
     @InjectMocks
@@ -123,5 +134,66 @@ class PerkServiceTest {
 
         // Verify that the result is empty
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void castVoteCreatesVoteWhenUserHasNotVoted() {
+        User user = mock(User.class);
+        Perk perk = mock(Perk.class);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(perkRepository.findById(12L)).thenReturn(Optional.of(perk));
+        when(voteRepository.findByUserIdAndPerkId(7L, 12L)).thenReturn(Optional.empty());
+
+        perkService.castVote(7L, 12L, (short) 1);
+
+        verify(voteRepository).save(argThat(vote -> vote.getValue() == 1
+                && vote.getUser() == user && vote.getPerk() == perk));
+    }
+
+    @Test
+    void castVoteChangesExistingVoteToOppositeDirection() {
+        User user = mock(User.class);
+        Perk perk = mock(Perk.class);
+        PerkVote existing = new PerkVote(user, perk, (short) 1);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(perkRepository.findById(12L)).thenReturn(Optional.of(perk));
+        when(voteRepository.findByUserIdAndPerkId(7L, 12L)).thenReturn(Optional.of(existing));
+
+        perkService.castVote(7L, 12L, (short) -1);
+
+        assertEquals(-1, existing.getValue());
+        verify(voteRepository, never()).save(any());
+        verify(voteRepository, never()).delete(any(PerkVote.class));
+    }
+
+    @Test
+    void castingSameDirectionAgainRemovesVote() {
+        User user = mock(User.class);
+        Perk perk = mock(Perk.class);
+        PerkVote existing = new PerkVote(user, perk, (short) -1);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(user));
+        when(perkRepository.findById(12L)).thenReturn(Optional.of(perk));
+        when(voteRepository.findByUserIdAndPerkId(7L, 12L)).thenReturn(Optional.of(existing));
+
+        perkService.castVote(7L, 12L, (short) -1);
+
+        verify(voteRepository).delete(existing);
+    }
+
+    @Test
+    void castVoteRejectsInvalidDirectionBeforeDatabaseAccess() {
+        assertThrows(ResponseStatusException.class,
+                () -> perkService.castVote(7L, 12L, (short) 0));
+        verifyNoInteractions(userRepository, perkRepository, voteRepository);
+    }
+
+    @Test
+    void removeVoteDeletesExistingVote() {
+        PerkVote existing = new PerkVote(mock(User.class), mock(Perk.class), (short) 1);
+        when(voteRepository.findByUserIdAndPerkId(7L, 12L)).thenReturn(Optional.of(existing));
+
+        perkService.removeVote(7L, 12L);
+
+        verify(voteRepository).delete(existing);
     }
 }

@@ -9,6 +9,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
+
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,7 +30,7 @@ class InitialDatabaseTest {
 
     // Test 1: Verify that Flyway migrations have run successfully
     @Test
-    void flywayMigrationsShouldBeSuccessful() {
+    void flywayMigrationsShouldBeSuccessful() throws IOException{
 
         // Validate using Flyway's built in validation
         flyway.validate();
@@ -33,8 +39,17 @@ class InitialDatabaseTest {
         assertTrue(flyway.info().applied().length >= 2);
 
         // Verify that the latest migration is version 4 (this needs to be updated each time a new migration file is added)
+        Path dir = Paths.get(System.getProperty("user.dir") + "/src/main/resources/db/migration");
+        long migrationFileCount = 0;
+
+        try (Stream<Path> stream = Files.list(dir)) {
+            migrationFileCount = stream
+                    .filter(Files::isRegularFile)
+                    .count();
+        }
+
         assertEquals(
-                "4",
+                Long.toString(migrationFileCount),
                 flyway.info().current().getVersion().getVersion()
         );
     }

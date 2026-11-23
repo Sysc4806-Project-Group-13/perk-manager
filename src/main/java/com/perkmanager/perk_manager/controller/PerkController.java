@@ -1,6 +1,7 @@
 package com.perkmanager.perk_manager.controller;
 
 import com.perkmanager.perk_manager.model.Perk;
+import com.perkmanager.perk_manager.model.PerkVote;
 import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.services.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +10,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Set;
@@ -55,9 +60,19 @@ public class PerkController {
         // Essentially a toggle
         boolean onlyMine = mine && loggedIn;
 
-        List<PerkRow> rows = perkService.searchActivePerks(keyword, areaFilter, onlyMine ? myIds : null).stream()
-                .map(p -> new PerkRow(p, myIds.contains(p.getMembership().getId())))
-                .toList();
+        List<Perk> perks = perkService.searchActivePerks(keyword, areaFilter, onlyMine ? myIds : null);
+        var votes = perkService.votesForPerks(perks.stream().map(Perk::getId).toList());
+        List<PerkRow> rows = perks.stream().map(p -> {
+            int score = 0;
+            Short myVote = null;
+            for (PerkVote vote : votes) {
+                if (vote.getPerk().getId().equals(p.getId())) {
+                    score += vote.getValue();
+                    if (loggedIn && java.util.Objects.equals(vote.getUser().getId(), userId)) myVote = vote.getValue();
+                }
+            }
+            return new PerkRow(p, myIds.contains(p.getMembership().getId()), score, myVote);
+        }).toList();
 
         model.addAttribute("rows", rows);
         model.addAttribute("q", keyword);
@@ -68,17 +83,39 @@ public class PerkController {
         return "perks";
     }
 
+    @PostMapping("/perks/{perkId}/vote")
+    public String vote(@PathVariable Long perkId, @RequestParam Short value, HttpServletRequest request) {
+        Long userId = AuthController.currentUserId(request);
+        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Log in to vote.");
+        perkService.castVote(userId, perkId, value);
+        return "redirect:/perks";
+    }
+
+    @PostMapping("/perks/{perkId}/vote/remove")
+    public String removeVote(@PathVariable Long perkId, HttpServletRequest request) {
+        Long userId = AuthController.currentUserId(request);
+        if (userId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Log in to vote.");
+        perkService.removeVote(userId, perkId);
+        return "redirect:/perks";
+    }
+
     // One row on the page: a perk, and whether it belongs to one of the viewer's memberships
     public static class PerkRow {
         private final Perk perk;
         private final boolean matchesProfile;
+        private final int voteScore;
+        private final Short myVote;
 
-        public PerkRow(Perk perk, boolean matchesProfile) {
+        public PerkRow(Perk perk, boolean matchesProfile, int voteScore, Short myVote) {
             this.perk = perk;
             this.matchesProfile = matchesProfile;
+            this.voteScore = voteScore;
+            this.myVote = myVote;
         }
 
         public Perk getPerk() { return perk; }
         public boolean isMatchesProfile() { return matchesProfile; }
+        public int getVoteScore() { return voteScore; }
+        public Short getMyVote() { return myVote; }
     }
 }
