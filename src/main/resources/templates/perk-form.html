@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+
+<head>
+    <title>Post a perk - Perk Manager</title>
+</head>
+
+<body>
+<main>
+
+    <section class="mx-auto flex max-w-2xl flex-col gap-6">
+
+        <div class="flex flex-col gap-1">
+            <h1 class="text-3xl font-semibold tracking-tight">
+                Post a perk
+            </h1>
+
+            <p class="text-muted-foreground">
+                Share a discount or benefit connected to an existing membership.
+            </p>
+        </div>
+
+        <form th:action="@{/perks}"
+              th:object="${perkForm}"
+              method="post"
+              class="card grid gap-5">
+
+            <!-- General errors -->
+            <div class="alert"
+                 data-variant="destructive"
+                 th:if="${#fields.hasGlobalErrors()}">
+
+                <section>
+                    <p th:each="error : ${#fields.globalErrors()}"
+                       th:text="${error}">
+                    </p>
+                </section>
+            </div>
+
+            <!-- Title -->
+            <div class="grid gap-2">
+
+                <label class="label" for="title">
+                    Perk title
+                </label>
+
+                <input class="input"
+                       type="text"
+                       id="title"
+                       th:field="*{title}"
+                       maxlength="100"
+                       placeholder="e.g. 15% off movie tickets"
+                       required>
+
+                <p class="text-sm text-destructive"
+                   th:if="${#fields.hasErrors('title')}"
+                   th:errors="*{title}">
+                </p>
+
+            </div>
+
+            <!-- Description -->
+            <div class="grid gap-2">
+
+                <label class="label" for="description">
+                    Description (optional)
+                </label>
+
+                <textarea class="textarea"
+                          id="description"
+                          th:field="*{description}"
+                          maxlength="2000"
+                          rows="3"
+                          placeholder="Add important conditions, exclusions, or redemption instructions.">
+                </textarea>
+
+                <p class="text-sm text-destructive"
+                   th:if="${#fields.hasErrors('description')}"
+                   th:errors="*{description}">
+                </p>
+
+            </div>
+
+            <!-- Product or service -->
+            <div class="grid gap-2">
+
+                <label class="label" for="productName">
+                    Product or service
+                </label>
+
+                <input class="input"
+                       type="text"
+                       id="productName"
+                       th:field="*{productName}"
+                       maxlength="100"
+                       placeholder="e.g. Movie tickets"
+                       required>
+
+                <p class="text-sm text-destructive"
+                   th:if="${#fields.hasErrors('productName')}"
+                   th:errors="*{productName}">
+                </p>
+
+            </div>
+
+            <!-- Membership -->
+            <div class="grid gap-2">
+
+                <label class="label" for="membershipId">
+                    Membership
+                </label>
+
+                <select class="select"
+                        id="membershipId"
+                        th:field="*{membershipId}"
+                        required>
+
+                    <option value="">
+                        Choose an existing membership
+                    </option>
+
+                    <option th:each="membership : ${memberships}"
+                            th:value="${membership.id}"
+                            th:text="${membership.name}">
+                    </option>
+
+                </select>
+
+                <p class="text-sm text-destructive"
+                   th:if="${#fields.hasErrors('membershipId')}"
+                   th:errors="*{membershipId}">
+                </p>
+
+                <p class="text-sm text-muted-foreground"
+                   th:if="${#lists.isEmpty(memberships)}">
+
+                    There are currently no memberships to attach to a perk.
+
+                </p>
+
+            </div>
+
+            <!-- Discount information -->
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                <div class="grid content-start gap-2">
+
+                    <label class="label" for="discountType">
+                        Discount type
+                    </label>
+
+                    <select class="select"
+                            id="discountType"
+                            th:field="*{discountType}"
+                            required>
+
+                        <option value="">
+                            Choose a discount type
+                        </option>
+
+                        <option th:each="type : ${discountTypes}"
+                                th:value="${type}"
+                                th:text="${#strings.replace(type.name(), '_', ' ')}">
+                        </option>
+
+                    </select>
+
+                    <p class="text-sm text-destructive"
+                       th:if="${#fields.hasErrors('discountType')}"
+                       th:errors="*{discountType}">
+                    </p>
+
+                </div>
+
+                <div class="grid content-start gap-2">
+
+                    <label class="label" for="discountValue">
+                        Discount value
+                    </label>
+
+                    <input class="input"
+                           type="number"
+                           id="discountValue"
+                           th:field="*{discountValue}"
+                           step="0.01"
+                           placeholder="e.g. 15">
+
+                    <p class="text-sm text-muted-foreground">
+                        Enter a percent, currency amount, or whole points amount as appropriate. Required for percentage, fixed amount, and points redemption; leave blank for a free item.
+                    </p>
+
+                    <p class="text-sm text-destructive"
+                       th:if="${#fields.hasErrors('discountValue')}"
+                       th:errors="*{discountValue}">
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Expiry and location -->
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                <div class="grid content-start gap-2">
+
+                    <label class="label" for="expiryDate">
+                        Expiry date (optional)
+                    </label>
+
+                    <input class="input"
+                           type="date"
+                           id="expiryDate"
+                           th:field="*{expiryDate}"
+                           th:attr="min=${today}">
+
+                    <p class="text-sm text-destructive"
+                       th:if="${#fields.hasErrors('expiryDate')}"
+                       th:errors="*{expiryDate}">
+                    </p>
+
+                </div>
+
+                <div class="grid content-start gap-2">
+
+                    <label class="label" for="geographicArea">
+                        Geographic restriction (optional)
+                    </label>
+
+                    <input class="input"
+                           type="text"
+                           id="geographicArea"
+                           th:field="*{geographicArea}"
+                           maxlength="100"
+                           placeholder="e.g. Ontario or Toronto">
+
+                    <p class="text-sm text-muted-foreground">
+                        Leave blank if the perk is available everywhere.
+                    </p>
+
+                    <p class="text-sm text-destructive"
+                       th:if="${#fields.hasErrors('geographicArea')}"
+                       th:errors="*{geographicArea}">
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+
+                <a th:href="@{/perks}"
+                   class="btn"
+                   data-variant="outline">
+                    Cancel
+                </a>
+
+                <button type="submit"
+                        class="btn"
+                        th:disabled="${#lists.isEmpty(memberships)}">
+                    Post perk
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+</main>
+</body>
+</html>

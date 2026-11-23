@@ -7,6 +7,9 @@ import com.perkmanager.perk_manager.repository.PerkRepository;
 import com.perkmanager.perk_manager.repository.MembershipRepository;
 import com.perkmanager.perk_manager.repository.PerkVoteRepository;
 import com.perkmanager.perk_manager.repository.UserRepository;
+import com.perkmanager.perk_manager.form.PerkForm;
+import com.perkmanager.perk_manager.model.Membership;
+import com.perkmanager.perk_manager.model.DiscountType;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -16,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+
+import java.math.BigDecimal;
 
 @Service
 public class PerkService {
@@ -58,6 +63,100 @@ public class PerkService {
 
         // Retrieve perks belonging to the membership
         return perkRepository.findByMembershipId(membershipId);
+    }
+
+    // Retrieve all memberships for the perk creation dropdown.
+    public List<Membership> getAllMemberships() {
+        return membershipRepository.findAllByOrderByNameAsc();
+    }
+
+    // Create and save a new perk.
+    @Transactional
+    public Perk createPerk(PerkForm form) {
+
+        if (form == null) {
+            throw new IllegalArgumentException("Perk details are required.");
+        }
+
+        // Validate title.
+        if (form.getTitle() == null || form.getTitle().isBlank()) {
+            throw new IllegalArgumentException("A perk title is required.");
+        }
+
+        // Validate product.
+        if (form.getProductName() == null || form.getProductName().isBlank()) {
+            throw new IllegalArgumentException("A product or service is required.");
+        }
+
+        // Validate discount type.
+        DiscountType type = form.getDiscountType();
+
+        if (type == null) {
+            throw new IllegalArgumentException("Select a discount type.");
+        }
+
+        BigDecimal value = form.getDiscountValue();
+
+        // Validate discount value.
+        if (type != DiscountType.FREE_ITEM) {
+
+            if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException(
+                        "Enter a discount value greater than zero.");
+            }
+
+        }
+
+        // Percentage cannot exceed 100.
+        if (type == DiscountType.PERCENTAGE &&
+                value.compareTo(new BigDecimal("100")) > 0) {
+
+            throw new IllegalArgumentException(
+                    "Percentage discounts cannot exceed 100%.");
+        }
+
+        // Points must be a whole number.
+        if (type == DiscountType.POINTS_REDEMPTION &&
+                value.stripTrailingZeros().scale() > 0) {
+
+            throw new IllegalArgumentException(
+                    "Points must be a whole number.");
+        }
+
+        // Validate expiry date.
+        if (form.getExpiryDate() != null &&
+                form.getExpiryDate().isBefore(LocalDate.now())) {
+
+            throw new IllegalArgumentException(
+                    "Expiry date cannot be in the past.");
+        }
+
+        // Find the existing membership.
+        if (form.getMembershipId() == null) {
+            throw new IllegalArgumentException(
+                    "Select a membership.");
+        }
+
+        Membership membership = membershipRepository
+                .findById(form.getMembershipId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Selected membership does not exist."));
+
+        // Create the perk.
+        Perk perk = new Perk(
+                form.getTitle().trim(),
+                form.getProductName().trim(),
+                type,
+                membership
+        );
+
+        perk.setDescription(form.getDescription());
+        perk.setDiscountValue(
+                type == DiscountType.FREE_ITEM ? null : value);
+        perk.setExpiryDate(form.getExpiryDate());
+        perk.setGeographicArea(form.getGeographicArea());
+
+        return perkRepository.save(perk);
     }
 
     // Active perks matching a keyword, optionally limited to an area and to a set of memberships.

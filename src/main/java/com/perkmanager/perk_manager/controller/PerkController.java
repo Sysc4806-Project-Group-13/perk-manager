@@ -4,7 +4,9 @@ import com.perkmanager.perk_manager.model.Perk;
 import com.perkmanager.perk_manager.model.PerkVote;
 import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.services.UserService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.perkmanager.perk_manager.form.PerkForm;
+import com.perkmanager.perk_manager.model.DiscountType;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.ModelAttribute;
+
+import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Set;
@@ -39,6 +47,106 @@ public class PerkController {
     @ResponseBody
     public List<Perk> getPerksByMembership(@RequestParam Long membershipId) {
         return perkService.getPerksByMembership(membershipId);
+    }
+
+    // Display the perk creation form.
+    @GetMapping("/perks/new")
+    public String newPerk(
+            HttpServletRequest request,
+            Model model) {
+
+        // Only logged-in users can create perks.
+        if (AuthController.currentUserId(request) == null) {
+            return "redirect:/login";
+        }
+
+        model.addAttribute("perkForm", new PerkForm());
+
+        model.addAttribute(
+                "memberships",
+                perkService.getAllMemberships());
+
+        model.addAttribute(
+                "discountTypes",
+                DiscountType.values());
+
+        model.addAttribute("activeNav", "perks");
+
+        return "perk-form";
+    }
+
+    // Receive and process a new perk submission.
+    @PostMapping("/perks")
+    public String createPerk(
+            @Valid @ModelAttribute("perkForm") PerkForm form,
+            BindingResult bindingResult,
+            HttpServletRequest request,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        // Require authentication.
+        if (AuthController.currentUserId(request) == null) {
+            return "redirect:/login";
+        }
+
+        // Free items do not require a numeric discount value.
+        if (form.getDiscountType() == DiscountType.FREE_ITEM) {
+            form.setDiscountValue(null);
+        }
+
+        // Validate percentage discounts.
+        if (form.getDiscountType() == DiscountType.PERCENTAGE
+                && form.getDiscountValue() != null
+                && form.getDiscountValue().compareTo(
+                new java.math.BigDecimal("100")) > 0) {
+
+            bindingResult.rejectValue(
+                    "discountValue",
+                    "invalid",
+                    "Percentage discounts cannot exceed 100%."
+            );
+        }
+
+        // Return to the form if validation fails.
+        if (bindingResult.hasErrors()) {
+            model.addAttribute(
+                    "memberships",
+                    perkService.getAllMemberships());
+
+            model.addAttribute(
+                    "discountTypes",
+                    DiscountType.values());
+
+            model.addAttribute("activeNav", "perks");
+
+            return "perk-form";
+        }
+
+        try {
+            perkService.createPerk(form);
+
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    "Your perk has been successfully posted!");
+
+            return "redirect:/perks";
+
+        } catch (IllegalArgumentException e) {
+
+            bindingResult.reject("perk.error", e.getMessage());
+
+            model.addAttribute(
+                    "memberships",
+                    perkService.getAllMemberships());
+
+            model.addAttribute(
+                    "discountTypes",
+                    DiscountType.values());
+
+            model.addAttribute("activeNav", "perks");
+
+            return "perk-form";
+        }
     }
 
     // ---------- HTML page ----------
