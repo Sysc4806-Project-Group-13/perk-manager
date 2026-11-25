@@ -6,6 +6,9 @@
 <body>
 <main>
     <section class="flex flex-col items-center gap-4 py-16 text-center">
+        <div class="alert max-w-2xl" th:if="${message}">
+            <section><p th:text="${message}"></p></section>
+        </div>
         <h1 class="text-4xl font-semibold tracking-tight text-balance">Perk Manager</h1>
         <p class="max-w-2xl text-lg text-balance text-muted-foreground">Find the perks that come with the memberships you have.</p>
         <a th:href="@{/memberships}" class="btn">Browse memberships</a>
