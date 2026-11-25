@@ -10,6 +10,7 @@ import com.perkmanager.perk_manager.utility.PasswordHasher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -96,6 +97,14 @@ public class UserService {
     }
 
     // ---------- Profile memberships ----------
+
+    // Every user (username and membership count only), alphabetical by username
+    @Transactional(readOnly = true)
+    public List<UserSummary> listUserSummaries() {
+        return userRepository.findAll(Sort.by(Sort.Order.asc("username").ignoreCase())).stream()
+                .map(u -> new UserSummary(u.getId(), u.getUsername(), u.getMemberships().size()))
+                .toList();
+    }
 
     // The memberships in the user's profile, alphabetical
     @Transactional(readOnly = true)
