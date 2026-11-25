@@ -8,32 +8,84 @@
     <section class="flex flex-col gap-6">
         <div class="flex flex-col gap-1">
             <h1 class="text-3xl font-semibold tracking-tight">Search perks</h1>
-            <p class="text-muted-foreground">Active perks, soonest expiry first.</p>
+            <p class="text-muted-foreground">Find active perks by product or service, then narrow them with the filters.</p>
         </div>
 
-        <form th:action="@{/perks}" method="get" class="flex flex-wrap items-end gap-2">
-            <div class="grid flex-1 gap-2">
-                <label class="label" for="q">Product or keyword</label>
-                <input class="input" type="search" id="q" name="q" th:value="${q}"
-                       placeholder="e.g. movie tickets, hotel">
+        <form th:action="@{/perks}" method="get" class="flex flex-col gap-4">
+            <!-- Row 1: search box with product autocomplete -->
+            <div class="flex flex-wrap items-end gap-2">
+                <div class="grid flex-1 gap-2">
+                    <label class="label" for="q">Product, service or keyword</label>
+                    <input class="input" type="search" id="q" name="q" th:value="${q}" list="product-suggestions"
+                           autocomplete="off" placeholder="e.g. movie tickets, hotel">
+                    <datalist id="product-suggestions">
+                        <option th:each="name : ${options.productNames}" th:value="${name}"></option>
+                    </datalist>
+                </div>
+                <button type="submit" class="btn">Search</button>
+                <a th:if="${filtersActive}" th:href="@{/perks}" class="btn" data-variant="ghost">Clear</a>
             </div>
-            <div class="grid gap-2">
-                <label class="label" for="area">Area</label>
-                <input class="input" type="text" id="area" name="area" th:value="${area}"
-                       placeholder="e.g. Ontario">
-            </div>
-            <label class="flex items-center gap-2 text-sm" th:if="${loggedIn}">
-                <input type="checkbox" name="mine" value="true" th:checked="${mine}">
-                Only my memberships
+
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="productOnly" value="true" th:checked="${productOnly}">
+                Match the product/service name only (ignore titles, descriptions and membership names)
             </label>
-            <button type="submit" class="btn">Search</button>
+
+            <!-- Row 2: filters -->
+            <div class="flex flex-wrap items-end gap-2">
+                <div class="grid gap-2">
+                    <label class="label" for="membershipId">Membership</label>
+                    <select class="select" id="membershipId" name="membershipId">
+                        <option value="">Any membership</option>
+                        <option th:each="m : ${options.memberships}" th:value="${m.id}" th:text="${m.name}"
+                                th:selected="${m.id == membershipId}">Visa</option>
+                    </select>
+                </div>
+
+                <div class="grid gap-2">
+                    <label class="label" for="area">Area</label>
+                    <select class="select" id="area" name="area">
+                        <option value="">Any area</option>
+                        <option th:each="a : ${options.areas}" th:value="${a}" th:text="${a}"
+                                th:selected="${#strings.equalsIgnoreCase(a, area)}">Ontario</option>
+                    </select>
+                </div>
+
+                <div class="grid gap-2">
+                    <label class="label" for="discountType">Benefit type</label>
+                    <select class="select" id="discountType" name="discountType">
+                        <option value="">Any type</option>
+                        <option th:each="t : ${discountTypes}" th:value="${t.name()}"
+                                th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(t.name(), '_', ' ')))}"
+                                th:selected="${t == discountType}">Percentage</option>
+                    </select>
+                </div>
+
+                <div class="grid gap-2">
+                    <label class="label" for="expiring">Expires</label>
+                    <select class="select" id="expiring" name="expiring">
+                        <option value="">Any time</option>
+                        <option value="30" th:selected="${expiring == 30}">Within 30 days</option>
+                        <option value="90" th:selected="${expiring == 90}">Within 90 days</option>
+                        <option value="180" th:selected="${expiring == 180}">Within 6 months</option>
+                    </select>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm" th:if="${loggedIn}">
+                    <input type="checkbox" name="mine" value="true" th:checked="${mine}">
+                    Only my memberships
+                </label>
+            </div>
+            <p class="text-sm text-muted-foreground">Perks that work anywhere are always included when you pick an area.</p>
         </form>
 
         <p th:if="${#lists.isEmpty(rows)}" class="text-muted-foreground">
-            No active perks match your search.
+            No active perks match your search. Try a different keyword or remove a filter.
         </p>
+        <p th:unless="${#lists.isEmpty(rows)}" class="text-sm text-muted-foreground"
+           th:text="${#lists.size(rows)} + (${#lists.size(rows)} == 1 ? ' perk found' : ' perks found')">3 perks found</p>
 
-        <div class="overflow-x-auto" th:unless="${#lists.isEmpty(rows)}">
+                <div class="overflow-x-auto" th:unless="${#lists.isEmpty(rows)}">
             <table class="table">
                 <thead>
                 <tr>

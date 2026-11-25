@@ -5,6 +5,10 @@ import com.perkmanager.perk_manager.model.Perk;
 import com.perkmanager.perk_manager.services.UserService;
 import com.perkmanager.perk_manager.model.Membership;
 import jakarta.servlet.http.HttpServletRequest;
+import com.perkmanager.perk_manager.search.PerkSearchCriteria;
+import com.perkmanager.perk_manager.model.DiscountType;
+import com.perkmanager.perk_manager.model.User;
+import com.perkmanager.perk_manager.model.PerkVote;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 
 
 // Tests the PerkController independently of the service implementation
@@ -96,14 +101,26 @@ class PerkControllerTest {
         assertTrue(result.isEmpty());
     }
 
+    // ---------- helpers for the /perks tests ----------
+
+    // Calls the page with every filter unset except the ones passed in
+    private String perksPage(String q, boolean mine) {
+        return controller.perks(q, false, null, null, null, null, mine, request, model);
+    }
+
+    private PerkSearchCriteria searchedCriteria() {
+        ArgumentCaptor<PerkSearchCriteria> captor = ArgumentCaptor.forClass(PerkSearchCriteria.class);
+        verify(perkService).searchActivePerks(captor.capture());
+        return captor.getValue();
+    }
+
     // ---------- HTML page: GET /perks ----------
 
     @Test
     void perksReturnsPerksViewName() {
         loginAs(null);
-        when(perkService.searchActivePerks(any(), any(), any())).thenReturn(List.of());
 
-        String view = controller.perks(null, null, false, request, model);
+        String view = perksPage(null, false);
 
         assertEquals("perks", view);
         assertEquals("perks", model.getAttribute("activeNav"));
@@ -112,32 +129,60 @@ class PerkControllerTest {
     @Test
     void perksTrimsInputsAndTreatsNullAsEmpty() {
         loginAs(null);
-        when(perkService.searchActivePerks(any(), any(), any())).thenReturn(List.of());
 
-        // Whitespace is trimmed on q, and a null area becomes ""
-        controller.perks("  coffee  ", null, false, request, model);
+        perksPage("  coffee  ", false);
 
-        verify(perkService).searchActivePerks(eq("coffee"), eq(""), isNull());
+        PerkSearchCriteria c = searchedCriteria();
+        assertEquals("coffee", c.keyword());
+        assertEquals("", c.area());
         assertEquals("coffee", model.getAttribute("q"));
         assertEquals("", model.getAttribute("area"));
+    }
+
+    @Test
+    void perksPassesEveryFilterToTheService() {
+        loginAs(5L);
+        Set<Long> myIds = Set.of(1L);
+        when(userService.membershipIdsForUser(5L)).thenReturn(myIds);
+
+        controller.perks("  tea ", true, "Ontario", 2L, "percentage", 30, true, request, model);
+
+        PerkSearchCriteria c = searchedCriteria();
+        assertEquals("tea", c.keyword());
+        assertTrue(c.productOnly());
+        assertEquals("Ontario", c.area());
+        assertEquals(2L, c.membershipId());
+        assertEquals(DiscountType.PERCENTAGE, c.discountType());
+        assertEquals(30, c.expiringWithinDays());
+        assertSame(myIds, c.onlyMembershipIds());
+        assertEquals(true, model.getAttribute("filtersActive"));
+    }
+
+    @Test
+    void perksIgnoresInvalidBenefitTypeExpiry() {
+        loginAs(null);
+
+        controller.perks(null, false, null, null, "bogus", -5, false, request, model);
+
+        PerkSearchCriteria c = searchedCriteria();
+        assertNull(c.discountType());
+        assertNull(c.expiringWithinDays());
+        assertEquals(false, model.getAttribute("filtersActive"));
     }
 
     @Test
     void perksForVisitorIsNotLoggedInAndNeverLooksUpMemberships() {
         loginAs(null);
         Perk perk = perkInMembership(1L);
-        when(perkService.searchActivePerks("", "", null))
-                .thenReturn(List.of(perk));
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class))).thenReturn(List.of(perk));
 
         // mine=true is ignored for visitors because onlyMine = mine && loggedIn
-        controller.perks(null, null, true, request, model);
+        perksPage(null, true);
 
         assertEquals(false, model.getAttribute("loggedIn"));
         assertEquals(false, model.getAttribute("mine"));
         verifyNoInteractions(userService);
-        verify(perkService).searchActivePerks("", "", null);
-
-        // With no memberships, nothing is flagged
+        assertNull(searchedCriteria().onlyMembershipIds());
         assertFalse(rowsFromModel().get(0).isMatchesProfile());
     }
 
@@ -145,21 +190,19 @@ class PerkControllerTest {
     void perksForLoggedInUserFlagsMatchesButDoesNotFilterWhenMineIsFalse() {
         loginAs(5L);
         when(userService.membershipIdsForUser(5L)).thenReturn(Set.of(1L));
-
         Perk mine = perkInMembership(1L);
         Perk other = perkInMembership(2L);
-        // null as the third argument means "don't filter by membership"
-        when(perkService.searchActivePerks("", "", null)).thenReturn(List.of(mine, other));
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class))).thenReturn(List.of(mine, other));
 
-        controller.perks(null, null, false, request, model);
+        perksPage(null, false);
 
+        assertNull(searchedCriteria().onlyMembershipIds());   // null = don't filter by membership
         List<PerkController.PerkRow> rows = rowsFromModel();
         assertEquals(2, rows.size());
         assertSame(mine, rows.get(0).getPerk());
         assertTrue(rows.get(0).isMatchesProfile());
         assertSame(other, rows.get(1).getPerk());
         assertFalse(rows.get(1).isMatchesProfile());
-
         assertEquals(true, model.getAttribute("loggedIn"));
         assertEquals(false, model.getAttribute("mine"));
     }
@@ -169,18 +212,17 @@ class PerkControllerTest {
         loginAs(5L);
         Set<Long> myIds = Set.of(1L, 3L);
         when(userService.membershipIdsForUser(5L)).thenReturn(myIds);
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class)))
+                .thenReturn(List.of(perkInMembership(1L)));
 
-        Perk mine = perkInMembership(1L);
-        when(perkService.searchActivePerks("tea", "ottawa", myIds)).thenReturn(List.of(mine));
+        perksPage("tea", true);
 
-        controller.perks("tea", "ottawa", true, request, model);
-
-        verify(perkService).searchActivePerks("tea", "ottawa", myIds);
+        assertSame(myIds, searchedCriteria().onlyMembershipIds());
         assertEquals(true, model.getAttribute("mine"));
-        assertEquals(1, rowsFromModel().size());
         assertTrue(rowsFromModel().get(0).isMatchesProfile());
     }
 
+    ----------------------------------------------------
     @Test
     void voteRequiresLoginAndDelegatesVote() {
         loginAs(42L);
@@ -210,58 +252,6 @@ class PerkControllerTest {
         verify(perkService).removeVote(42L, 15L);
     }
 
-    /**
-    @Test
-    void getPerksByMembershipReturnsPerks() {
 
-        // Create a mock service
-        PerkService service = mock(PerkService.class);
 
-        // Create the controller using the mock service
-        PerkController controller =
-                new PerkController(service);
-
-        // Define the membership ID being requested
-        Long membershipId = 1L;
-
-        // Create a sample perk
-        Perk perk = mock(Perk.class);
-
-        // Configure the service to return one perk
-        when(service.getPerksByMembership(membershipId))
-                .thenReturn(List.of(perk));
-
-        // Call the controller method
-        List<Perk> result =
-                controller.getPerksByMembership(membershipId);
-
-        // Verify that the controller returns one perk
-        assertEquals(1, result.size());
-
-        // Verify that the controller passes the correct ID to the service
-        verify(service).getPerksByMembership(membershipId);
-    }
-
-    // Test that the controller handles memberships with no perks
-    @Test
-    void getPerksByMembershipReturnsEmptyList() {
-
-        // Create a mock service
-        PerkService service = mock(PerkService.class);
-
-        // Create the controller
-        PerkController controller =
-                new PerkController(service);
-
-        // Configure the service to return an empty list
-        when(service.getPerksByMembership(1L))
-                .thenReturn(List.of());
-
-        // Call the controller method
-        List<Perk> result =
-                controller.getPerksByMembership(1L);
-
-        // Verify that no perks are returned
-        assertTrue(result.isEmpty());
-    } **/
 }
