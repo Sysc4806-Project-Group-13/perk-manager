@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import java.util.Comparator;
 
 import java.util.List;
 import java.util.Set;
@@ -43,12 +44,21 @@ public class PerkController {
 
     // ---------- HTML page ----------
 
-    // GET /perks : search active perks by keyword and area, soonest expiry first.
-    // Visitors can search; logged-in users also get matches flagged and an "only my memberships" filter.
+    // Sort options for the perks page
+    public static final String SORT_EXPIRY = "expiry";
+    public static final String SORT_VOTES = "votes";
+
+    // Same page without a sort choice: soonest expiry first
+    public String perks(String q, String area, boolean mine, HttpServletRequest request, Model model) {
+        return perks(q, area, mine, SORT_EXPIRY, request, model);
+    }
+
+    // GET /perks : search active perks by keyword and area, sorted by soonest expiry (default) or by votes.
     @GetMapping("/perks")
     public String perks(@RequestParam(required = false) String q,
                         @RequestParam(required = false) String area,
                         @RequestParam(defaultValue = "false") boolean mine,
+                        @RequestParam(defaultValue = SORT_EXPIRY) String sort,
                         HttpServletRequest request,
                         Model model) {
         String keyword = q == null ? "" : q.trim();
@@ -74,7 +84,17 @@ public class PerkController {
             return new PerkRow(p, myIds.contains(p.getMembership().getId()), score, myVote);
         }).toList();
 
+        // Highest score first. sorted() is stable, so ties keep the expiry order from the search.
+        boolean byVotes = SORT_VOTES.equals(sort);
+        if (byVotes) {
+            rows = rows.stream()
+                    .sorted(Comparator.comparingInt(PerkRow::getVoteScore).reversed())
+                    .toList();
+        }
+
         model.addAttribute("rows", rows);
+        model.addAttribute("sort", byVotes ? SORT_VOTES : SORT_EXPIRY);
+
         model.addAttribute("q", keyword);
         model.addAttribute("area", areaFilter);
         model.addAttribute("mine", onlyMine);
