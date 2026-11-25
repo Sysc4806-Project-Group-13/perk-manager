@@ -7,6 +7,8 @@ import com.perkmanager.perk_manager.repository.PerkRepository;
 import com.perkmanager.perk_manager.repository.MembershipRepository;
 import com.perkmanager.perk_manager.repository.PerkVoteRepository;
 import com.perkmanager.perk_manager.repository.UserRepository;
+import com.perkmanager.perk_manager.search.PerkFilterOptions;
+import com.perkmanager.perk_manager.search.PerkSearchCriteria;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -64,17 +66,52 @@ public class PerkService {
     //   keyword: null or blank matches everything (product, title, description, membership name)
     //   area: null or blank means no area filter; otherwise keeps perks with no area limit or that exact area
     //   onlyMembershipIds: null means all memberships; an empty set means no perks at all
-    public List<Perk> searchActivePerks(String keyword, String area, Set<Long> onlyMembershipIds) {
-        String q = keyword == null ? "" : keyword.trim();
-        String wantedArea = area == null ? "" : area.trim();
 
-        return perkRepository.searchActive(q, LocalDate.now()).stream()
-                .filter(p -> wantedArea.isEmpty()
-                        || p.getGeographicArea() == null
-                        || p.getGeographicArea().equalsIgnoreCase(wantedArea))
-                .filter(p -> onlyMembershipIds == null
-                        || onlyMembershipIds.contains(p.getMembership().getId()))
+    // Original 3-argument search, kept so MembershipController keeps working unchanged
+    public List<Perk> searchActivePerks(String keyword, String area, Set<Long> onlyMembershipIds) {
+        return searchActivePerks(PerkSearchCriteria.of(keyword, area, onlyMembershipIds));
+    }
+
+    // Active perks matching every option that is set in the criteria. Results keep the
+    // repository's order: soonest expiry first, perks that never expire last.
+    public List<Perk> searchActivePerks(PerkSearchCriteria c){
+        LocalDate today = LocalDate.now();
+
+        // Step 1: the database does the text search (and removes expired perks)
+        List<Perk> candidates = c.productOnly()
+                ? perkRepository.searchActiveByProduct(c.keyword(), today)
+                : perkRepository.searchActive(c.keyword(), today);
+
+        // Latest expiry date allowed by "expires within N days" (null = no limit)
+        LocalDate cutoff = c.expiringWithinDays() == null ? null : today.plusDays(c.expiringWithinDays());
+
+        // Step 2: each remaining option narrows the list further
+        return candidates.stream()
+                // keeps perks with no area limit, or limited to the chosen area
+                .filter(p -> c.area().isEmpty()
+                    || p.getGeographicArea() == null
+                    || p.getGeographicArea().equalsIgnoreCase(c.area()))
+                .filter(p -> c.membershipId() == null
+                    || c.membershipId().equals(p.getMembership().getId()))
+                .filter(p -> c.discountType() == null
+                    || p.getDiscountType() == c.discountType())
+                // perks that never expire (null date) don't count as "expiring soon"
+                .filter(p -> cutoff == null
+                    || (p.getExpiryDate() != null && !p.getExpiryDate().isAfter(cutoff)))
+                .filter(p -> c.onlyMembershipIds() == null
+                    || c.onlyMembershipIds().contains(p.getMembership().getId()))
                 .toList();
+    }
+
+    // Choices for the page's dropdowns and autocomplete
+    @Transactional(readOnly = true)
+    public PerkFilterOptions filterOptions() {
+        LocalDate today = LocalDate.now();
+        return new PerkFilterOptions(
+                membershipRepository.findAllByOrderByNameAsc(),
+                perkRepository.findActiveAreas(today),
+                perkRepository.findActiveProductNames(today)
+        );
     }
 
     @Transactional

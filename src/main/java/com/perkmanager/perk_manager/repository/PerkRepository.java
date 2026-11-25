@@ -89,7 +89,7 @@ public interface PerkRepository extends JpaRepository<Perk, Long> {
 
     // Distinct product/service names of active perks, for the search box's autocomplete
     @Query("""
-            select distinct p.productName from Perk p 
+            select distinct p.productName from Perk p
             where p.expiryDate is null or p.expiryDate >= :today
             order by p.productName
             """)
@@ -97,7 +97,7 @@ public interface PerkRepository extends JpaRepository<Perk, Long> {
 
     // Distinct areas of active perks, for the Area dropdown (perks with no area are skipped)
     @Query("""
-            select distinct p.geographicArea from Perk p 
+            select distinct p.geographicArea from Perk p
             where p.geographicArea is not null
                 and (p.expiryDate is null or p.expiryDate >= :today)
             order by p.geographicArea
