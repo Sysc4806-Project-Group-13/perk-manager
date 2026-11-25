@@ -222,7 +222,6 @@ class PerkControllerTest {
         assertTrue(rowsFromModel().get(0).isMatchesProfile());
     }
 
-    ----------------------------------------------------
     @Test
     void voteRequiresLoginAndDelegatesVote() {
         loginAs(42L);
