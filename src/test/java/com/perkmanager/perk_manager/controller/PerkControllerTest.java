@@ -212,13 +212,17 @@ class PerkControllerTest {
         verify(perkService).removeVote(42L, 15L);
     }
     // ---------- sorting: GET /perks?sort=... ----------
+    // These tests check how the /perks page orders its rows. The service is mocked, so the search
+    // always returns perks in "soonest expiry first" order, and each test only checks what the
+    // controller does with that list when a sort option is chosen.
 
+    // Helper: a mocked perk with a given id, so the controller can match votes to perks
     private Perk perkWithId(Long perkId) {
         Perk perk = perkInMembership(1L);
         when(perk.getId()).thenReturn(perkId);
         return perk;
     }
-
+    // Helper: a mocked vote of +1 or -1 on a perk
     private PerkVote voteOn(Perk perk, int value) {
         PerkVote vote = mock(PerkVote.class);
         when(vote.getPerk()).thenReturn(perk);
@@ -226,6 +230,9 @@ class PerkControllerTest {
         return vote;
     }
 
+    // With sort=votes the perk with the highest score comes first and the lowest score comes last.
+    // Setup: perks with scores 0, +2 (two upvotes) and -1 (one downvote), returned in expiry order.
+    // Expected order after sorting: +2, 0, -1. Also checks that the page remembers sort=votes.
     @Test
     void sortByVotesPutsHighestScoreFirst() {
         loginAs(null);
@@ -246,6 +253,9 @@ class PerkControllerTest {
         assertEquals("votes", model.getAttribute("sort"));
     }
 
+    // When two perks have the same score, sorting by votes must not shuffle them: they keep the
+    // soonest-expiry order they came in with. Setup: only the third perk has a vote, so the first
+    // two are tied at 0. Expected order: third, first, second.
     @Test
     void sortByVotesKeepsExpiryOrderForTies() {
         loginAs(null);
@@ -264,6 +274,8 @@ class PerkControllerTest {
         assertSame(second, rows.get(2).getPerk());
     }
 
+    // With sort=expiry the controller must leave the search order alone, even if a later perk has
+    // more votes. Setup: the second perk has an upvote, but "soon" must still come first.
     @Test
     void sortByExpiryKeepsTheSearchOrderEvenWhenVotesDiffer() {
         loginAs(null);
@@ -281,6 +293,8 @@ class PerkControllerTest {
         assertEquals("expiry", model.getAttribute("sort"));
     }
 
+    // An unrecognised sort value (for example someone typing ?sort=banana in the URL) must not break
+    // the page. The controller falls back to the default, sort by expiry.
     @Test
     void unknownSortFallsBackToExpiry() {
         loginAs(null);
@@ -291,6 +305,8 @@ class PerkControllerTest {
         assertEquals("expiry", model.getAttribute("sort"));
     }
 
+    // The older method without a sort argument (used by existing tests) must still work and
+    // default to sorting by expiry.
     @Test
     void perksWithoutASortChoiceDefaultsToExpiry() {
         loginAs(null);
