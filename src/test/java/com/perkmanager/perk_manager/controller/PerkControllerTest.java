@@ -212,8 +212,9 @@ class PerkControllerTest {
         loginAs(5L);
         Set<Long> myIds = Set.of(1L, 3L);
         when(userService.membershipIdsForUser(5L)).thenReturn(myIds);
+        Perk mine = perkInMembership(1L);
         when(perkService.searchActivePerks(any(PerkSearchCriteria.class)))
-                .thenReturn(List.of(perkInMembership(1L)));
+                .thenReturn(List.of(mine));
 
         perksPage("tea", true);
 
