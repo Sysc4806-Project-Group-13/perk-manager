@@ -77,6 +77,30 @@ public interface PerkRepository extends JpaRepository<Perk, Long> {
                                           @Param("today") LocalDate today,
                                           @Param("membershipIds") Collection<Long> membershipIds);
 
-    // Will be updated with sort by votes when the schema has vote columns added.
+    // Same as searchActive, but the keyword is only compared with the product/service name
+    @Query("""
+            select p from Perk p
+            join fetch p.membership
+            where (p.expiryDate is null or p.expiryDate >= :today)
+                and lower(p.productName) like lower(concat('%', :keyword, '%'))
+            order by p.expiryDate asc nulls last, p.id asc
+            """)
+    List<Perk> searchActiveByProduct(@Param("keyword") String keyword, @Param("today") LocalDate today);
 
+    // Distinct product/service names of active perks, for the search box's autocomplete
+    @Query("""
+            select distinct p.productName from Perk p 
+            where p.expiryDate is null or p.expiryDate >= :today
+            order by p.productName
+            """)
+    List<String> findActiveProductNames(@Param("today") LocalDate today);
+
+    // Distinct areas of active perks, for the Area dropdown (perks with no area are skipped)
+    @Query("""
+            select distinct p.geographicArea from Perk p 
+            where p.geographicArea is not null
+                and (p.expiryDate is null or p.expiryDate >= :today)
+            order by p.geographicArea
+            """)
+    List<String> findActiveAreas(@Param("today") LocalDate today);
 }
