@@ -58,10 +58,10 @@
                 <p>Active perks from the memberships above, soonest expiry first.</p>
             </header>
             <section>
-                <p th:if="${#lists.isEmpty(perks)}" class="text-muted-foreground">
+                <p th:if="${#lists.isEmpty(perkRows)}" class="text-muted-foreground">
                     No active perks yet. Add a membership to see its perks.
                 </p>
-                <div class="overflow-x-auto" th:unless="${#lists.isEmpty(perks)}">
+                <div class="overflow-x-auto" th:unless="${#lists.isEmpty(perkRows)}">
                     <table class="table">
                         <thead>
                         <tr>
