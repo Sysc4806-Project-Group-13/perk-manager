@@ -40,15 +40,16 @@ class PerkControllerTest {
     @BeforeEach
     void setUp() {
         perkService = mock(PerkService.class);
-        membershipService = mock(MembershipService.class);
         userService = mock(UserService.class);
+
         controller = new PerkController(
                 perkService,
-                membershipService,
                 userService
         );
+
         request = mock(HttpServletRequest.class);
         model = new ExtendedModelMap();
+
         auth = mockStatic(AuthController.class);
     }
 
