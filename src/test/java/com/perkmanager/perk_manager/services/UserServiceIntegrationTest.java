@@ -22,9 +22,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Exercises the web, service, repository, and database layers together. */
+/** Sends real MVC requests through the services and repositories to the configured database. */
 @SpringBootTest
 @AutoConfigureMockMvc
+// Keep each test's database writes isolated; Spring rolls them back after the test.
 @Transactional
 class UserServiceIntegrationTest {
 
@@ -42,6 +43,7 @@ class UserServiceIntegrationTest {
         String username = "it-" + UUID.randomUUID().toString().substring(0, 12);
         String password = "integration-pass";
 
+        // Register through the website and confirm a user row was created.
         var registration = mockMvc.perform(post("/register")
                         .param("username", username)
                         .param("password", password)
@@ -56,7 +58,7 @@ class UserServiceIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE id = ? AND username = ?", Integer.class, userId, username));
 
-        // Logout and authenticate against the stored password hash.
+        // Log out, then verify login checks the stored password hash and starts a new session.
         mockMvc.perform(post("/logout").session(session))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
@@ -72,6 +74,7 @@ class UserServiceIntegrationTest {
                 session.getAttribute(AuthController.SESSION_USER_ID),
                 "The login request should leave the authenticated user in its session.");
 
+        // Add a real membership to the signed-in user's profile.
         Long membershipId = jdbcTemplate.queryForObject(
                 "SELECT id FROM memberships WHERE name = 'Air Miles'", Long.class);
         mockMvc.perform(post("/profile/memberships")
@@ -80,13 +83,14 @@ class UserServiceIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"));
 
-        // The test transaction is rolled back at the end, so flush JPA writes before
-        // checking the join table directly with JdbcTemplate.
+        // Flush pending JPA changes so the SQL query can see the join-table row.
+        // The test transaction still rolls back automatically when the test finishes.
         entityManager.flush();
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM user_memberships WHERE user_id = ? AND membership_id = ?",
                 Integer.class, userId, membershipId));
 
+        // Check that the profile page loads for this user, then remove the membership.
         mockMvc.perform(get("/profile").session(session))
                 .andExpect(status().isOk())
                 .andExpect(view().name("profile"))
@@ -103,6 +107,7 @@ class UserServiceIntegrationTest {
 
     @Test
     void perkApiAndSearchPageReadMigratedPerksFromTheDatabase() throws Exception {
+        // The JSON API should return perks belonging to the selected membership.
         Long airMilesId = jdbcTemplate.queryForObject(
                 "SELECT id FROM memberships WHERE name = 'Air Miles'", Long.class);
 
@@ -112,6 +117,7 @@ class UserServiceIntegrationTest {
                 .andExpect(jsonPath("$[0].title").value("Free Domestic Flight"))
                 .andExpect(jsonPath("$[0].membership.name").value("Air Miles"));
 
+        // Visitors can also search the HTML page without being logged in.
         mockMvc.perform(get("/perks").param("q", "Domestic Flights"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("perks"))
@@ -126,6 +132,7 @@ class UserServiceIntegrationTest {
         Long membershipId = jdbcTemplate.queryForObject(
                 "SELECT id FROM memberships WHERE name = 'Air Miles'", Long.class);
 
+        // Registration signs the user in and provides the session used by later requests.
         var registration = mockMvc.perform(post("/register")
                         .param("username", username)
                         .param("password", password)
@@ -136,12 +143,14 @@ class UserServiceIntegrationTest {
         MockHttpSession session = (MockHttpSession) registration.getRequest().getSession(false);
         Long userId = (Long) session.getAttribute(AuthController.SESSION_USER_ID);
 
+        // The profile only shows perks from memberships the user has added.
         mockMvc.perform(post("/profile/memberships")
                         .session(session)
                         .param("membershipId", membershipId.toString()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"));
 
+        // Submit a valid percentage perk through the same form endpoint used by the website.
         String title = "Integration perk " + UUID.randomUUID().toString().substring(0, 8);
         mockMvc.perform(post("/perks")
                         .session(session)
@@ -154,6 +163,8 @@ class UserServiceIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/perks"));
 
+        // Flush before querying the new row with SQL; the surrounding test transaction
+        // keeps it isolated and rolls it back after the test.
         entityManager.flush();
         Long perkId = jdbcTemplate.queryForObject(
                 "SELECT id FROM perks WHERE title = ?", Long.class, title);
@@ -161,6 +172,7 @@ class UserServiceIntegrationTest {
                 "SELECT COUNT(*) FROM perks WHERE id = ? AND membership_id = ? AND discount_value = 15",
                 Integer.class, perkId, membershipId));
 
+        // Cast an upvote and confirm it was stored for this user and perk.
         mockMvc.perform(post("/perks/{perkId}/vote", perkId)
                         .session(session)
                         .param("value", "1"))
@@ -171,6 +183,7 @@ class UserServiceIntegrationTest {
                 "SELECT COUNT(*) FROM perk_votes WHERE user_id = ? AND perk_id = ? AND vote_value = 1",
                 Integer.class, userId, perkId));
 
+        // The profile should show the membership's new perk, its score, and this user's vote.
         mockMvc.perform(get("/profile").session(session))
                 .andExpect(status().isOk())
                 .andExpect(view().name("profile"))
