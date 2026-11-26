@@ -28,7 +28,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
 
-import com.perkmanager.perk_manager.model.PerkVote;
 
 
 // Tests the PerkController independently of the service implementation
@@ -258,12 +257,18 @@ class PerkControllerTest {
     // always returns perks in "soonest expiry first" order, and each test only checks what the
     // controller does with that list when a sort option is chosen.
 
+    // Helper: calls the page with every filter unset and the given sort choice
+    private String perksSortedBy(String sort) {
+        return controller.perks(null, false, null, null, null, null, false, sort, request, model);
+    }
+
     // Helper: a mocked perk with a given id, so the controller can match votes to perks
     private Perk perkWithId(Long perkId) {
         Perk perk = perkInMembership(1L);
         when(perk.getId()).thenReturn(perkId);
         return perk;
     }
+
     // Helper: a mocked vote of +1 or -1 on a perk
     private PerkVote voteOn(Perk perk, int value) {
         PerkVote vote = mock(PerkVote.class);
@@ -281,17 +286,20 @@ class PerkControllerTest {
         Perk none = perkWithId(1L);
         Perk popular = perkWithId(2L);
         Perk disliked = perkWithId(3L);
-        when(perkService.searchActivePerks("", "", null)).thenReturn(List.of(none, popular, disliked));
+        // search order (soonest expiry first): none, popular, disliked
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class)))
+                .thenReturn(List.of(none, popular, disliked));
         List<PerkVote> votes = List.of(voteOn(popular, 1), voteOn(popular, 1), voteOn(disliked, -1));
         when(perkService.votesForPerks(anyList())).thenReturn(votes);
 
-        controller.perks(null, null, false, "votes", request, model);
+        perksSortedBy("votes");
 
         List<PerkController.PerkRow> rows = rowsFromModel();
         assertSame(popular, rows.get(0).getPerk());
         assertEquals(2, rows.get(0).getVoteScore());
         assertSame(none, rows.get(1).getPerk());
         assertSame(disliked, rows.get(2).getPerk());
+        assertEquals(-1, rows.get(2).getVoteScore());
         assertEquals("votes", model.getAttribute("sort"));
     }
 
@@ -304,11 +312,12 @@ class PerkControllerTest {
         Perk first = perkWithId(1L);
         Perk second = perkWithId(2L);
         Perk third = perkWithId(3L);
-        when(perkService.searchActivePerks("", "", null)).thenReturn(List.of(first, second, third));
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class)))
+                .thenReturn(List.of(first, second, third));
         List<PerkVote> votes = List.of(voteOn(third, 1));
         when(perkService.votesForPerks(anyList())).thenReturn(votes);
 
-        controller.perks(null, null, false, "votes", request, model);
+        perksSortedBy("votes");
 
         List<PerkController.PerkRow> rows = rowsFromModel();
         assertSame(third, rows.get(0).getPerk());
@@ -323,11 +332,12 @@ class PerkControllerTest {
         loginAs(null);
         Perk soon = perkWithId(1L);
         Perk later = perkWithId(2L);
-        when(perkService.searchActivePerks("", "", null)).thenReturn(List.of(soon, later));
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class)))
+                .thenReturn(List.of(soon, later));
         List<PerkVote> votes = List.of(voteOn(later, 1));
         when(perkService.votesForPerks(anyList())).thenReturn(votes);
 
-        controller.perks(null, null, false, "expiry", request, model);
+        perksSortedBy("expiry");
 
         List<PerkController.PerkRow> rows = rowsFromModel();
         assertSame(soon, rows.get(0).getPerk());
@@ -340,25 +350,24 @@ class PerkControllerTest {
     @Test
     void unknownSortFallsBackToExpiry() {
         loginAs(null);
-        when(perkService.searchActivePerks(any(), any(), any())).thenReturn(List.of());
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class))).thenReturn(List.of());
 
-        controller.perks(null, null, false, "banana", request, model);
+        perksSortedBy("banana");
 
         assertEquals("expiry", model.getAttribute("sort"));
     }
 
-    // The older method without a sort argument (used by existing tests) must still work and
+    // The page without a sort argument (used by the other tests) must still work and
     // default to sorting by expiry.
     @Test
     void perksWithoutASortChoiceDefaultsToExpiry() {
         loginAs(null);
-        when(perkService.searchActivePerks(any(), any(), any())).thenReturn(List.of());
+        when(perkService.searchActivePerks(any(PerkSearchCriteria.class))).thenReturn(List.of());
 
-        controller.perks(null, null, false, request, model);
+        perksPage(null, false);
 
         assertEquals("expiry", model.getAttribute("sort"));
     }
-
-
-
 }
+
+
