@@ -4,6 +4,7 @@ import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.model.Perk;
 import com.perkmanager.perk_manager.services.UserService;
 import com.perkmanager.perk_manager.model.Membership;
+import com.perkmanager.perk_manager.services.MembershipService;
 import jakarta.servlet.http.HttpServletRequest;
 import com.perkmanager.perk_manager.search.PerkSearchCriteria;
 import com.perkmanager.perk_manager.model.DiscountType;
@@ -35,6 +36,7 @@ class PerkControllerTest {
 
     private PerkService perkService;
     private UserService userService;
+    private MembershipService membershipService;
     private PerkController controller;
     private HttpServletRequest request;
     private Model model;
@@ -43,13 +45,16 @@ class PerkControllerTest {
     @BeforeEach
     void setUp() {
         perkService = mock(PerkService.class);
-        lenient().when(perkService.votesForPerks(anyList())).thenReturn(List.of());
         userService = mock(UserService.class);
-        controller = new PerkController(perkService, userService);
+
+        controller = new PerkController(
+                perkService,
+                userService
+        );
+
         request = mock(HttpServletRequest.class);
         model = new ExtendedModelMap();
 
-        // currentUserId(...) is a static method, so it has to be mocked statically
         auth = mockStatic(AuthController.class);
     }
 

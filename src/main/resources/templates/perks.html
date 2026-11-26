@@ -6,9 +6,22 @@
 <body>
 <main>
     <section class="flex flex-col gap-6">
-        <div class="flex flex-col gap-1">
-            <h1 class="text-3xl font-semibold tracking-tight">Search perks</h1>
-            <p class="text-muted-foreground">Find active perks by product or service, then narrow them with the filters.</p>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div class="flex flex-col gap-1">
+                <h1 class="text-3xl font-semibold tracking-tight">Search perks</h1>
+                <p class="text-muted-foreground">Active perks, soonest expiry first.</p>
+            </div>
+            <a th:if="${loggedIn}"
+               th:href="@{/perks/new}"
+               class="btn">
+                Post a Perk
+            </a>
+        </div>
+
+        <div class="alert" th:if="${successMessage}">
+            <section>
+                <p th:text="${successMessage}"></p>
+            </section>
         </div>
 
         <form th:action="@{/perks}" method="get" class="flex flex-col gap-4">
