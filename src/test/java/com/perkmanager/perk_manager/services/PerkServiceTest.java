@@ -7,6 +7,10 @@ import com.perkmanager.perk_manager.repository.UserRepository;
 import com.perkmanager.perk_manager.model.PerkVote;
 import com.perkmanager.perk_manager.model.User;
 import com.perkmanager.perk_manager.model.Perk;
+import com.perkmanager.perk_manager.model.Membership;
+import com.perkmanager.perk_manager.model.DiscountType;
+import com.perkmanager.perk_manager.search.PerkSearchCriteria;
+
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -196,4 +202,132 @@ class PerkServiceTest {
 
         verify(voteRepository).delete(existing);
     }
+
+    // ---------- searchActivePerks(criteria) ----------
+
+    private Perk perk(Long membershipId, DiscountType type, String area, LocalDate expiry) {
+        Membership membership = mock(Membership.class);
+        lenient().when(membership.getId()).thenReturn(membershipId);
+        Perk perk = new Perk("Title", "Product", type, membership);
+        perk.setGeographicArea(area);
+        perk.setExpiryDate(expiry);
+        return perk;
+    }
+
+    @Test
+    void searchUsesProductOnlyQueryWhenProductOnlyIsSet() {
+        Perk movie = perk(1L, DiscountType.PERCENTAGE, null, null);
+        when(perkRepository.searchActiveByProduct(eq("movie"), any(LocalDate.class))).thenReturn(List.of(movie));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("movie", true, null, null, null, null, null));
+
+        assertEquals(List.of(movie), result);
+        verify(perkRepository, never()).searchActive(any(), any());
+    }
+
+    @Test
+    void searchUsesFullTextQueryByDefault() {
+        Perk perk = perk(1L, DiscountType.PERCENTAGE, null, null);
+        when(perkRepository.searchActive(eq("visa"), any(LocalDate.class))).thenReturn(List.of(perk));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("visa", false, null, null, null, null, null));
+
+        assertEquals(List.of(perk), result);
+        verify(perkRepository, never()).searchActiveByProduct(any(), any());
+    }
+
+    @Test
+    void searchFiltersByMembership() {
+        Perk visa = perk(1L, DiscountType.PERCENTAGE, null, null);
+        Perk caa = perk(2L, DiscountType.PERCENTAGE, null, null);
+        when(perkRepository.searchActive(eq(""), any(LocalDate.class))).thenReturn(List.of(visa, caa));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("", false, null, 1L, null, null, null));
+
+        assertEquals(List.of(visa), result);
+    }
+
+    @Test
+    void searchFiltersByDiscountType() {
+        Perk percent = perk(1L, DiscountType.PERCENTAGE, null, null);
+        Perk fixed = perk(1L, DiscountType.FIXED_AMOUNT, null, null);
+        when(perkRepository.searchActive(eq(""), any(LocalDate.class))).thenReturn(List.of(percent, fixed));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("", false, null, null, DiscountType.FIXED_AMOUNT, null, null));
+
+        assertEquals(List.of(fixed), result);
+    }
+
+    @Test
+    void searchExpiringWithinKeepsPerksInsideTheWindowAndDropsNeverExpiring() {
+        LocalDate today = LocalDate.now();
+        Perk soon = perk(1L, DiscountType.PERCENTAGE, null, today.plusDays(10));
+        Perk onTheEdge = perk(1L, DiscountType.PERCENTAGE, null, today.plusDays(30));
+        Perk later = perk(1L, DiscountType.PERCENTAGE, null, today.plusDays(100));
+        Perk never = perk(1L, DiscountType.PERCENTAGE, null, null);
+        when(perkRepository.searchActive(eq(""), any(LocalDate.class)))
+                .thenReturn(List.of(soon, onTheEdge, later, never));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("", false, null, null, null, 30, null));
+
+        assertEquals(List.of(soon, onTheEdge), result);
+    }
+
+    @Test
+    void searchAreaKeepsUnrestrictedPerksAndMatchesCaseInsensitively() {
+        Perk anywhere = perk(1L, DiscountType.PERCENTAGE, null, null);
+        Perk ontario = perk(1L, DiscountType.PERCENTAGE, "Ontario", null);
+        Perk quebec = perk(1L, DiscountType.PERCENTAGE, "Quebec", null);
+        when(perkRepository.searchActive(eq(""), any(LocalDate.class)))
+                .thenReturn(List.of(anywhere, ontario, quebec));
+
+        List<Perk> result = perkService.searchActivePerks(
+                new PerkSearchCriteria("", false, "ONTARIO", null, null, null, null));
+
+        assertEquals(List.of(anywhere, ontario), result);
+    }
+
+    @Test
+    void searchCombinesFilters() {
+        LocalDate today = LocalDate.now();
+        Perk match = perk(1L, DiscountType.PERCENTAGE, "Ontario", today.plusDays(5));
+        Perk wrongType = perk(1L, DiscountType.FIXED_AMOUNT, "Ontario", today.plusDays(5));
+        Perk notMine = perk(2L, DiscountType.PERCENTAGE, "Ontario", today.plusDays(5));
+        Perk tooLate = perk(1L, DiscountType.PERCENTAGE, "Ontario", today.plusDays(50));
+        when(perkRepository.searchActive(eq("tea"), any(LocalDate.class)))
+                .thenReturn(List.of(match, wrongType, notMine, tooLate));
+
+        List<Perk> result = perkService.searchActivePerks(new PerkSearchCriteria(
+                "tea", false, "Ontario", null, DiscountType.PERCENTAGE, 30, Set.of(1L)));
+
+        assertEquals(List.of(match), result);
+    }
+
+    @Test
+    void threeArgumentSearchStillWorks() {
+        Perk mine = perk(1L, DiscountType.PERCENTAGE, null, null);
+        Perk other = perk(2L, DiscountType.PERCENTAGE, null, null);
+        when(perkRepository.searchActive(eq("x"), any(LocalDate.class))).thenReturn(List.of(mine, other));
+
+        assertEquals(List.of(mine), perkService.searchActivePerks("x", null, Set.of(1L)));
+    }
+
+    @Test
+    void filterOptionsCollectsMembershipsAreasAndProducts() {
+        when(membershipRepository.findAllByOrderByNameAsc()).thenReturn(List.of(mock(Membership.class)));
+        when(perkRepository.findActiveAreas(any(LocalDate.class))).thenReturn(List.of("Canada"));
+        when(perkRepository.findActiveProductNames(any(LocalDate.class))).thenReturn(List.of("Movie Tickets"));
+
+        var options = perkService.filterOptions();
+
+        assertEquals(1, options.getMemberships().size());
+        assertEquals(List.of("Canada"), options.getAreas());
+        assertEquals(List.of("Movie Tickets"), options.getProductNames());
+    }
+
 }

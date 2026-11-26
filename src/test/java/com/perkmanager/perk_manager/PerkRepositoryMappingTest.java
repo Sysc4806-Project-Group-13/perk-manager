@@ -247,4 +247,42 @@ public class PerkRepositoryMappingTest {
 
         assertEquals(5, membershipRepository.count() - membershipRepository.findByNameContainingIgnoreCase("ABC").size());
     }
+
+    @Test
+    void searchActiveByProductOnlyChecksTheProductName() {
+        Membership m = newMembership("ABCbrand Gold");
+        LocalDate today = LocalDate.now();
+        newPerk("Other", "ABCmovie Tickets", m, null);              // product match
+        newPerk("ABCmovie special", "Unrelated", m, null);          // title only
+        Perk byDesc = newPerk("Plain", "Unrelated", m, null);
+        byDesc.setDescription("a ABCMOVIE night");                   // description only
+        newPerk("Expired", "ABCmovie", m, today.minusDays(1));       // product match, but expired
+        flushAndClear();
+
+        List<Perk> result = perkRepository.searchActiveByProduct("ABCMOVIE", today);
+
+        assertEquals(1, result.size());
+        assertEquals("Other", result.get(0).getTitle());
+        // The membership name is not searched in product-only mode
+        assertTrue(perkRepository.searchActiveByProduct("ABCbrand", today).isEmpty());
+    }
+
+    @Test
+    void findActiveProductNamesAndAreasAreDistinctSortedAndSkipExpired() {
+        Membership m = newMembership("ABC Test Card");
+        LocalDate today = LocalDate.now();
+        newPerk("a", "ABC Zebra", m, null);
+        newPerk("b", "ABC Zebra", m, null);                          // duplicate product name
+        newPerk("c", "ABC Apple", m, null);
+        newPerk("d", "ABC Expired Product", m, today.minusDays(1));
+        Perk inArea = newPerk("e", "ABC Apple", m, null);
+        inArea.setGeographicArea("ABC Area");
+        flushAndClear();
+
+        List<String> products = perkRepository.findActiveProductNames(today).stream()
+                .filter(n -> n.startsWith("ABC")).toList();
+
+        assertEquals(List.of("ABC Apple", "ABC Zebra"), products);
+        assertTrue(perkRepository.findActiveAreas(today).contains("ABC Area"));
+    }
 }

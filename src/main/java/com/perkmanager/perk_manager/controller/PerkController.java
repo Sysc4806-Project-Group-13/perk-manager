@@ -6,7 +6,8 @@ import com.perkmanager.perk_manager.services.PerkService;
 import com.perkmanager.perk_manager.services.UserService;
 import com.perkmanager.perk_manager.form.PerkForm;
 import com.perkmanager.perk_manager.model.DiscountType;
-
+import com.perkmanager.perk_manager.search.PerkSearchCriteria;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Locale;
 
 
 // Perks: an HTML search page (/perks) and a JSON endpoint (/api/perks)
@@ -151,16 +153,18 @@ public class PerkController {
 
     // ---------- HTML page ----------
 
-    // GET /perks : search active perks by keyword and area, soonest expiry first.
+    // GET /perks : search active perks by product/keyword and narrow them with filters.
     // Visitors can search; logged-in users also get matches flagged and an "only my memberships" filter.
     @GetMapping("/perks")
     public String perks(@RequestParam(required = false) String q,
+                        @RequestParam(defaultValue = "false") boolean productOnly,
                         @RequestParam(required = false) String area,
+                        @RequestParam(required = false) Long membershipId,
+                        @RequestParam(required = false) String discountType,
+                        @RequestParam(required = false) Integer expiring,
                         @RequestParam(defaultValue = "false") boolean mine,
                         HttpServletRequest request,
                         Model model) {
-        String keyword = q == null ? "" : q.trim();
-        String areaFilter = area == null ? "" : area.trim();
 
         Long userId = AuthController.currentUserId(request);
         boolean loggedIn = userId != null;
@@ -168,7 +172,11 @@ public class PerkController {
         // Essentially a toggle
         boolean onlyMine = mine && loggedIn;
 
-        List<Perk> perks = perkService.searchActivePerks(keyword, areaFilter, onlyMine ? myIds : null);
+        // Raw request values -> one criteria object (it trims and normalizes them)
+        PerkSearchCriteria criteria = new PerkSearchCriteria(q, productOnly, area, membershipId,
+                parseDiscountType(discountType), expiring, onlyMine ? myIds : null);
+
+        List<Perk> perks = perkService.searchActivePerks(criteria);
         var votes = perkService.votesForPerks(perks.stream().map(Perk::getId).toList());
         List<PerkRow> rows = perks.stream().map(p -> {
             int score = 0;
@@ -182,13 +190,33 @@ public class PerkController {
             return new PerkRow(p, myIds.contains(p.getMembership().getId()), score, myVote);
         }).toList();
 
+        // Echo the chosen values back so the form keeps showing them
         model.addAttribute("rows", rows);
-        model.addAttribute("q", keyword);
-        model.addAttribute("area", areaFilter);
+        model.addAttribute("q", criteria.keyword());
+        model.addAttribute("productOnly", productOnly);
+        model.addAttribute("area", criteria.area());
+        model.addAttribute("membershipId", membershipId);
+        model.addAttribute("discountType", criteria.discountType());
+        model.addAttribute("expiring", criteria.expiringWithinDays());
         model.addAttribute("mine", onlyMine);
         model.addAttribute("loggedIn", loggedIn);
+        model.addAttribute("filtersActive", criteria.hasFilters());
+        // Dropdown contents
+        model.addAttribute("options", perkService.filterOptions());
+        model.addAttribute("discountTypes", DiscountType.values());
+
         model.addAttribute("activeNav", "perks");
         return "perks";
+    }
+
+    // A bad benefit type (e.g. typed into the URL) is ignored instead of causing an error
+    private static DiscountType parseDiscountType(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return DiscountType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @PostMapping("/perks/{perkId}/vote")

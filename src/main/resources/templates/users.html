@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+<head>
+    <title>Users - Perk Manager</title>
+</head>
+<body>
+<main>
+    <section class="flex flex-col gap-6">
+        <div class="flex flex-col gap-1">
+            <h1 class="text-3xl font-semibold tracking-tight">Users</h1>
+            <p class="text-muted-foreground">Everyone on Perk Manager. Click a name to see their memberships.</p>
+        </div>
+
+        <div class="alert" data-variant="destructive" th:if="${error}">
+            <section><p th:text="${error}"></p></section>
+        </div>
+
+        <p th:if="${#lists.isEmpty(users)}" class="text-muted-foreground">
+            No users have signed up yet.
+        </p>
+
+        <div class="overflow-x-auto" th:unless="${#lists.isEmpty(users)}">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Memberships</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="u : ${users}">
+                    <td>
+                        <a th:href="@{/users/{id}(id=${u.id})}" th:text="${u.username}">username</a>
+                        <span class="badge" th:if="${u.id == currentUserId}">You</span>
+                    </td>
+                    <td th:text="${u.membershipCount}">0</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+</body>
+</html>
