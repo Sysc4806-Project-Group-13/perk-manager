@@ -40,6 +40,8 @@
                    th:attr="aria-current=${activeNav == 'memberships'} ? 'page' : null">Memberships</a>
                 <a th:href="@{/perks}" class="btn aria-[current=page]:bg-muted" data-variant="ghost"
                    th:attr="aria-current=${activeNav == 'perks'} ? 'page' : null">Perks</a>
+                <a th:href="@{/users}" class="btn aria-[current=page]:bg-muted" data-variant="ghost"
+                   th:attr="aria-current=${activeNav == 'users'} ? 'page' : null">Users</a>
                 <a th:if="${session.userId != null}" th:href="@{/profile}" class="btn aria-[current=page]:bg-muted"
                    data-variant="ghost"
                    th:attr="aria-current=${activeNav == 'profile'} ? 'page' : null">Profile</a>

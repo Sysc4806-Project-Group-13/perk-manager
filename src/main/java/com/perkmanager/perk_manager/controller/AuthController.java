@@ -9,6 +9,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Optional;
 
@@ -39,10 +40,12 @@ public class AuthController {
                            @RequestParam String password,
                            @RequestParam String confirmPassword,
                            HttpServletRequest request,
-                           Model model) {
+                           Model model,
+                           RedirectAttributes redirectAttributes) {
         try {
             User user = userService.register(username, password, confirmPassword);
             startSession(request, user); // sign the new user straight in
+            redirectAttributes.addFlashAttribute("message", "Account created. Welcome, " + user.getUsername() + ".");
             return "redirect:/profile";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
@@ -65,7 +68,8 @@ public class AuthController {
     public String login(@RequestParam String username,
                         @RequestParam String password,
                         HttpServletRequest request,
-                        Model model) {
+                        Model model,
+                        RedirectAttributes redirectAttributes) {
         Optional<User> user = userService.authenticate(username, password);
         if (user.isEmpty()) {
             model.addAttribute("error", "Invalid username or password.");
@@ -74,15 +78,17 @@ public class AuthController {
             return "login";
         }
         startSession(request, user.get());
+        redirectAttributes.addFlashAttribute("message", "Welcome back, " + user.get().getUsername() + ".");
         return "redirect:/profile";
     }
 
     @PostMapping("/logout")
-    public String logout(HttpServletRequest request) {
+    public String logout(HttpServletRequest request, RedirectAttributes redirectAttributes) {
         HttpSession session = request.getSession(false); // do not create a session just to destroy it
         if (session != null) {
             session.invalidate();
         }
+        redirectAttributes.addFlashAttribute("message", "You have been logged out.");
         return "redirect:/";
     }
 
