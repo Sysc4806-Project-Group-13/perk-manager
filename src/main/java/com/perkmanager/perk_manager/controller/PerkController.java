@@ -27,7 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Set;
 import java.util.Locale;
-
+import java.util.Comparator;
 
 // Perks: an HTML search page (/perks) and a JSON endpoint (/api/perks)
 @Controller
@@ -153,8 +153,21 @@ public class PerkController {
 
     // ---------- HTML page ----------
 
+    // Sort options for the perks page: "expiry" (soonest expiry first, the default) or "votes" (highest score first)
+    public static final String SORT_EXPIRY = "expiry";
+    public static final String SORT_VOTES = "votes";
+
+    // The page without a sort choice: sorted by expiry (keeps older callers and tests working)
+    public String perks(String q, boolean productOnly, String area, Long membershipId,
+                        String discountType, Integer expiring, boolean mine,
+                        HttpServletRequest request, Model model) {
+        return perks(q, productOnly, area, membershipId, discountType, expiring, mine,
+                SORT_EXPIRY, request, model);
+    }
+
     // GET /perks : search active perks by product/keyword and narrow them with filters.
     // Visitors can search; logged-in users also get matches flagged and an "only my memberships" filter.
+    // sort=expiry (default) keeps the soonest expiry first, sort=votes puts the highest vote score first.
     @GetMapping("/perks")
     public String perks(@RequestParam(required = false) String q,
                         @RequestParam(defaultValue = "false") boolean productOnly,
@@ -163,6 +176,7 @@ public class PerkController {
                         @RequestParam(required = false) String discountType,
                         @RequestParam(required = false) Integer expiring,
                         @RequestParam(defaultValue = "false") boolean mine,
+                        @RequestParam(defaultValue = SORT_EXPIRY) String sort,
                         HttpServletRequest request,
                         Model model) {
 
@@ -190,8 +204,18 @@ public class PerkController {
             return new PerkRow(p, myIds.contains(p.getMembership().getId()), score, myVote);
         }).toList();
 
+        // The search already returns soonest expiry first. For votes, highest score first;
+        // the sort is stable, so ties keep the soonest-expiry order.
+        boolean byVotes = SORT_VOTES.equals(sort);
+        if (byVotes) {
+            rows = rows.stream()
+                    .sorted(Comparator.comparingInt(PerkRow::getVoteScore).reversed())
+                    .toList();
+        }
+
         // Echo the chosen values back so the form keeps showing them
         model.addAttribute("rows", rows);
+        model.addAttribute("sort", byVotes ? SORT_VOTES : SORT_EXPIRY);
         model.addAttribute("q", criteria.keyword());
         model.addAttribute("productOnly", productOnly);
         model.addAttribute("area", criteria.area());
