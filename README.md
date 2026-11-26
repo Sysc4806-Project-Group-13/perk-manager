@@ -473,3 +473,6 @@ perk-manager/
 5. Open a Pull Request targeting `main`.
 
 All database schema changes must include the appropriate Flyway migration files.
+
+Plan for next sprint:
+https://github.com/Sysc4806-Project-Group-13/perk-manager/issues/67
